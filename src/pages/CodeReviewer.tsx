@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { FileText, Info, ChevronRight, Code, Copy, Check, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
+import { FileText, Info, ChevronRight, Code, Copy, Check, AlertCircle, CheckCircle, AlertTriangle, GitFork, Database, LayoutTemplate, Share2, Download } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
@@ -25,11 +25,32 @@ import 'prismjs/components/prism-go';
 import 'prismjs/components/prism-rust';
 import 'prismjs/components/prism-markdown';
 import 'prismjs/themes/prism.css';
+import mermaid from 'mermaid';
+import { DiagramResult } from '@/utils/openai';
+
+// Initialize mermaid
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'default',
+  logLevel: 'error',
+  securityLevel: 'loose',
+  flowchart: { curve: 'basis' },
+  themeVariables: {
+    primaryColor: '#3b82f6',
+    primaryTextColor: '#ffffff',
+    primaryBorderColor: '#3b82f6',
+    lineColor: '#64748b',
+    secondaryColor: '#f1f5f9',
+    tertiaryColor: '#f8fafc',
+  }
+});
 
 interface FormData {
   codeSnippet: string;
   language: string;
   reviewType: 'bugs' | 'performance' | 'style' | 'comprehensive';
+  includeVisualization: boolean;
+  diagramType?: 'flowchart' | 'class' | 'er' | 'sequence';
 }
 
 interface CodeIssue {
@@ -48,12 +69,15 @@ interface ReviewResult {
 
 const CodeReviewer = () => {
   const [reviewResult, setReviewResult] = useState<ReviewResult | null>(null);
+  const [diagramResult, setDiagramResult] = useState<DiagramResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [apiKeyLoading, setApiKeyLoading] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [editorValue, setEditorValue] = useState<string>('');
   const [activeIssue, setActiveIssue] = useState<number | null>(null);
+  const [diagramLoading, setDiagramLoading] = useState<boolean>(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const diagramRef = useRef<HTMLDivElement>(null);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   
@@ -81,7 +105,9 @@ const CodeReviewer = () => {
     defaultValues: {
       codeSnippet: '',
       language: 'javascript',
-      reviewType: 'comprehensive'
+      reviewType: 'comprehensive',
+      includeVisualization: false,
+      diagramType: 'flowchart'
     }
   });
 
@@ -92,6 +118,8 @@ const CodeReviewer = () => {
 
   const language = watch('language');
   const reviewType = watch('reviewType');
+  const includeVisualization = watch('includeVisualization');
+  const diagramType = watch('diagramType');
 
   const getLanguageHighlighter = (lang: string) => {
     switch (lang) {
@@ -130,11 +158,75 @@ const CodeReviewer = () => {
     setEditorValue(code);
   };
 
+  // Create a useEffect to handle diagram rendering
+  useEffect(() => {
+    if (diagramResult && diagramRef.current) {
+      try {
+        // Clear the diagram container
+        diagramRef.current.innerHTML = '';
+        // Create a div for mermaid
+        const mermaidDiv = document.createElement('div');
+        mermaidDiv.className = 'mermaid';
+        mermaidDiv.textContent = diagramResult.mermaidCode;
+        diagramRef.current.appendChild(mermaidDiv);
+        // Render the diagram
+        mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+      } catch (error) {
+        console.error('Error rendering diagram:', error);
+        toast.error('Failed to render diagram. Please check the diagram syntax.');
+        
+        // Display the raw code if rendering fails
+        if (diagramRef.current) {
+          diagramRef.current.innerHTML = `
+            <div class="p-4 bg-red-50 text-red-800 rounded-md mb-4">
+              Error rendering diagram. Displaying raw code:
+            </div>
+            <pre class="bg-gray-100 p-4 rounded-md overflow-x-auto">${diagramResult.mermaidCode}</pre>
+          `;
+        }
+      }
+    }
+  }, [diagramResult]);
+
+  const downloadSVG = () => {
+    if (diagramRef.current) {
+      const svgElement = diagramRef.current.querySelector('svg');
+      if (svgElement) {
+        // Create a Blob from the SVG
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const blob = new Blob([svgData], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create a download link
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = `${diagramResult?.title || 'diagram'}.svg`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        URL.revokeObjectURL(url);
+        toast.success('SVG diagram downloaded successfully');
+      } else {
+        toast.error('No SVG diagram found to download');
+      }
+    }
+  };
+  
+  const copyDiagramCode = () => {
+    if (diagramResult) {
+      navigator.clipboard.writeText(diagramResult.mermaidCode).then(() => {
+        toast.success('Diagram code copied to clipboard');
+      });
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     try {
       setIsLoading(true);
       setApiKeyLoading(true);
       setReviewResult(null);
+      setDiagramResult(null);
       
       // Toast notification that we're getting ready
       toast.info('Preparing to review your code...');
@@ -152,6 +244,32 @@ const CodeReviewer = () => {
       
       setReviewResult(result);
       toast.success('Code review completed successfully');
+      
+      // Generate diagram if requested
+      if (data.includeVisualization && data.diagramType) {
+        setDiagramLoading(true);
+        toast.info('Generating visualization diagram...');
+        
+        try {
+          const diagramResult = await openAIService.generateDiagram(
+            data.codeSnippet,
+            data.diagramType,
+            data.language
+          );
+          
+          setDiagramResult(diagramResult);
+          toast.success('Diagram generated successfully');
+        } catch (error) {
+          let errorMessage = 'Failed to generate diagram';
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          }
+          toast.error(errorMessage);
+        } finally {
+          setDiagramLoading(false);
+        }
+      }
+      
     } catch (error) {
       setApiKeyLoading(false);
       let errorMessage = 'Failed to review code';
@@ -462,6 +580,15 @@ def quickProcess(file, drop_cols=[]):
     }
   };
 
+  const getDiagramTypeIcon = (type: 'flowchart' | 'class' | 'er' | 'sequence') => {
+    switch (type) {
+      case 'flowchart': return <GitFork className="h-5 w-5" />;
+      case 'class': return <LayoutTemplate className="h-5 w-5" />;
+      case 'er': return <Database className="h-5 w-5" />;
+      case 'sequence': return <Share2 className="h-5 w-5" />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/50">
       <Header />
@@ -530,6 +657,70 @@ def quickProcess(file, drop_cols=[]):
                       </div>
                     </RadioGroup>
                   </div>
+                  
+                  <div className="flex items-center gap-2 mt-4">
+                    <input
+                      type="checkbox"
+                      id="includeVisualization"
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                      {...register('includeVisualization')}
+                    />
+                    <Label htmlFor="includeVisualization" className="text-sm font-medium cursor-pointer">
+                      Include AI-Generated Diagram
+                    </Label>
+                  </div>
+                  
+                  {includeVisualization && (
+                    <div className="pl-6 border-l-2 border-primary/20">
+                      <Label>Diagram Type</Label>
+                      <RadioGroup 
+                        defaultValue="flowchart" 
+                        className="grid grid-cols-2 gap-4 mt-1"
+                        onValueChange={(value) => setValue('diagramType', value as 'flowchart' | 'class' | 'er' | 'sequence')}
+                      >
+                        <div>
+                          <RadioGroupItem value="flowchart" id="flowchart" className="peer sr-only" />
+                          <Label
+                            htmlFor="flowchart"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <GitFork className="mb-2 h-5 w-5" />
+                            <span>Flowchart</span>
+                          </Label>
+                        </div>
+                        <div>
+                          <RadioGroupItem value="class" id="class-diagram" className="peer sr-only" />
+                          <Label
+                            htmlFor="class-diagram"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <LayoutTemplate className="mb-2 h-5 w-5" />
+                            <span>Class Diagram</span>
+                          </Label>
+                        </div>
+                        <div>
+                          <RadioGroupItem value="er" id="er" className="peer sr-only" />
+                          <Label
+                            htmlFor="er"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <Database className="mb-2 h-5 w-5" />
+                            <span>ER Diagram</span>
+                          </Label>
+                        </div>
+                        <div>
+                          <RadioGroupItem value="sequence" id="sequence" className="peer sr-only" />
+                          <Label
+                            htmlFor="sequence"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <Share2 className="mb-2 h-5 w-5" />
+                            <span>Sequence</span>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  )}
                   
                   <div>
                     <Label htmlFor="language">Programming Language</Label>
@@ -628,17 +819,27 @@ def quickProcess(file, drop_cols=[]):
                   <Button 
                     type="submit" 
                     className="w-full gap-2"
-                    disabled={isLoading}
+                    disabled={isLoading || diagramLoading}
                   >
-                    {isLoading ? (
+                    {isLoading || diagramLoading ? (
                       <>
                         <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary-foreground animate-spin"></div>
-                        <span>{apiKeyLoading ? 'Preparing API Key...' : 'Analyzing...'}</span>
+                        <span>
+                          {apiKeyLoading ? 'Preparing API Key...' : 
+                           diagramLoading ? 'Generating Diagram...' : 
+                           'Analyzing...'}
+                        </span>
                       </>
                     ) : (
                       <>
                         <Code size={16} />
                         <span>Review My Code</span>
+                        {includeVisualization && (
+                          <>
+                            {' + '}
+                            {getDiagramTypeIcon(diagramType || 'flowchart')}
+                          </>
+                        )}
                         <ChevronRight size={16} />
                       </>
                     )}
@@ -690,6 +891,41 @@ def quickProcess(file, drop_cols=[]):
                     </div>
                     <p className="text-muted-foreground">{reviewResult.summary}</p>
                   </GlassCard>
+                  
+                  {diagramResult && (
+                    <GlassCard className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-xl font-medium flex items-center gap-2">
+                          {getDiagramTypeIcon(diagramType || 'flowchart')}
+                          <span>{diagramResult.title}</span>
+                        </h3>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex items-center gap-1"
+                            onClick={copyDiagramCode}
+                          >
+                            <Copy size={14} />
+                            <span>Copy Code</span>
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex items-center gap-1"
+                            onClick={downloadSVG}
+                          >
+                            <Download size={14} />
+                            <span>Download SVG</span>
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="text-muted-foreground mb-4">{diagramResult.explanation}</p>
+                      <div ref={diagramRef} className="bg-white p-4 rounded-md overflow-x-auto">
+                        {/* Mermaid diagram will be rendered here */}
+                      </div>
+                    </GlassCard>
+                  )}
                   
                   <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
                     <GlassCard className="p-6">
@@ -747,6 +983,14 @@ def quickProcess(file, drop_cols=[]):
                     </GlassCard>
                   </div>
                 </div>
+              ) : diagramLoading ? (
+                <GlassCard className="p-8 flex flex-col items-center justify-center min-h-[400px] text-center">
+                  <div className="h-12 w-12 rounded-full border-4 border-t-transparent border-primary animate-spin mb-6"></div>
+                  <h3 className="text-xl font-medium mb-2">Generating Visual Diagram</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Our AI is analyzing your code structure and creating a visual representation
+                  </p>
+                </GlassCard>
               ) : (
                 <GlassCard className="p-8 flex flex-col items-center justify-center min-h-[400px] text-center">
                   <Code size={48} className="text-muted-foreground mb-6 opacity-50" />

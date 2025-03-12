@@ -23,6 +23,12 @@ export interface AIExplanationResponse {
   error: string | null;
 }
 
+export interface DiagramResult {
+  mermaidCode: string;
+  explanation: string;
+  title: string;
+}
+
 class OpenAIService {
   private baseUrl = 'https://api.openai.com/v1/chat/completions';
   private apiKey: string | null = null;
@@ -468,6 +474,97 @@ class OpenAIService {
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Error reviewing code: ${error.message}`);
+      }
+      throw new Error('Unknown error occurred');
+    }
+  }
+
+  async generateDiagram(
+    codeOrDescription: string,
+    diagramType: 'flowchart' | 'class' | 'er' | 'sequence',
+    language: string = ''
+  ): Promise<DiagramResult> {
+    // Try to ensure we have an API key
+    const apiKey = await this.ensureApiKey();
+    
+    if (!apiKey) {
+      throw new Error('API key not found in database. Please contact your administrator.');
+    }
+
+    let systemPrompt = `You are an expert software architect who excels at creating visual diagrams from code or textual descriptions.
+    Your task is to analyze the provided code or description and generate a ${diagramType} diagram using Mermaid syntax.
+    
+    Based on the input, create a detailed, well-structured diagram that accurately represents the ${diagramType === 'flowchart' ? 'process flow' : 
+      diagramType === 'class' ? 'classes and their relationships' :
+      diagramType === 'er' ? 'entities and their relationships' : 'sequence of interactions'}.
+    
+    Follow these guidelines:
+    - Use proper Mermaid syntax for ${diagramType} diagrams
+    - Create a clear, organized visual layout
+    - Include all relevant ${diagramType === 'flowchart' ? 'steps and decision points' : 
+      diagramType === 'class' ? 'classes, methods, properties, and relationships' :
+      diagramType === 'er' ? 'entities, attributes, and relationships' : 'actors, actions, and messages'}
+    - Add appropriate labels and annotations
+    - Use styling to improve readability (colors, shapes, etc.)
+    - Keep the diagram focused and avoid excessive complexity
+    
+    Your response should be in JSON format with the following structure:
+    {
+      "title": "A descriptive title for the diagram",
+      "mermaidCode": "The complete Mermaid syntax for the diagram",
+      "explanation": "A brief explanation of the diagram and key elements"
+    }
+    
+    The mermaidCode should be complete and valid Mermaid syntax that can be rendered directly.`;
+
+    const options: OpenAIRequestOptions = {
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        {
+          role: "user",
+          content: `Generate a ${diagramType} diagram for this ${language} ${diagramType === 'flowchart' ? 'process' : 
+            diagramType === 'class' ? 'class structure' :
+            diagramType === 'er' ? 'data model' : 'interaction sequence'}:\n\n${codeOrDescription}`
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 2500,
+      response_format: { type: "json_object" }
+    };
+
+    try {
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(options)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to generate diagram');
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      
+      // Parse the JSON response
+      try {
+        const diagramResult: DiagramResult = JSON.parse(content);
+        return diagramResult;
+      } catch (parseError) {
+        console.error('Error parsing JSON response:', parseError);
+        throw new Error('Failed to parse diagram results');
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Error generating diagram: ${error.message}`);
       }
       throw new Error('Unknown error occurred');
     }
