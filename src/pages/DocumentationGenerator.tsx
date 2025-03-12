@@ -1343,27 +1343,31 @@ Features:
                       ) : (
                         <div className="code-editor" ref={editorRef}>
                           <input type="hidden" {...register('codeSnippet', { required: 'This field is required' })} />
-                          <Editor
-                            value={editorValue}
-                            onValueChange={handleCodeChange}
-                            highlight={code => highlight(code, getLanguageHighlighter(language), language)}
-                            padding={16}
-                            style={{
-                              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                              fontSize: '14px',
-                              minHeight: '250px',
-                              backgroundColor: '#1e1e1e',
-                              color: '#d4d4d4',
-                              borderRadius: '0.375rem',
-                            }}
-                            placeholder={placeholderText}
-                            className="min-h-[250px] w-full focus:outline-none"
-                            onPaste={e => {
-                              const text = e.clipboardData.getData('text/plain');
-                              handleCodeChange(text);
-                            }}
-                            textareaId="code-editor-textarea"
-                          />
+                          <div className="ensure-text-visible">
+                            <Editor
+                              value={editorValue}
+                              onValueChange={handleCodeChange}
+                              highlight={code => highlight(code, getLanguageHighlighter(language), language)}
+                              padding={16}
+                              style={{
+                                fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                                fontSize: '14px',
+                                minHeight: '250px',
+                                backgroundColor: '#eaedf2',
+                                color: '#000000',
+                                borderRadius: '0.375rem',
+                                fontWeight: 600,
+                              }}
+                              placeholder={placeholderText}
+                              textareaClassName="editor-textarea-element"
+                              className="min-h-[250px] w-full focus:outline-none"
+                              onPaste={e => {
+                                const text = e.clipboardData.getData('text/plain');
+                                handleCodeChange(text);
+                              }}
+                              textareaId="code-editor-textarea"
+                            />
+                          </div>
                           <div className="absolute top-2 right-2 flex gap-2">
                             <Button 
                               type="button"

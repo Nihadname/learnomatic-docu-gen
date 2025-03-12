@@ -167,6 +167,21 @@
   box-shadow: none !important;
 }
 
+/* Explicitly style the editor textarea for visibility */
+.editor-textarea-element {
+  color: black !important;
+  background-color: #eaedf2 !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+}
+
+.dark .editor-textarea-element {
+  color: white !important;
+  background-color: #2d3545 !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+}
+
 /* Light mode styling */
 .code-editor-container:not(.dark) {
   background-color: #f0f2f5;
@@ -280,23 +295,6 @@
   font-weight: 500;
 }
 
-/* Enhanced textarea visibility */
-.editor-textarea-element {
-  color: black !important;
-  background-color: #eaedf2 !important;
-  font-weight: 600 !important;
-  opacity: 1 !important;
-  -webkit-text-fill-color: black !important;
-}
-
-.dark .editor-textarea-element {
-  color: white !important;
-  background-color: #2d3545 !important;
-  font-weight: 600 !important;
-  opacity: 1 !important;
-  -webkit-text-fill-color: white !important;
-}
-
 /* Fix for code editor background */
 .code-editor-container:not(.dark) {
   background-color: #eaedf2 !important;
@@ -306,4 +304,25 @@
 .dark .code-editor-container {
   background-color: #2d3545 !important;
   color: white !important;
+}
+
+/* Ensure text visibility wrapper */
+.ensure-text-visible {
+  background-color: #eaedf2;
+}
+
+.ensure-text-visible textarea {
+  color: black !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+}
+
+.dark .ensure-text-visible {
+  background-color: #2d3545;
+}
+
+.dark .ensure-text-visible textarea {
+  color: white !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
 }
