@@ -9,9 +9,7 @@ import ExplanationResult from '@/components/ai/ExplanationResult';
 import openAIService from '@/utils/openai';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -22,16 +20,16 @@ interface FormData {
   codeSnippet: string;
   language: string;
   docType: 'function' | 'class' | 'readme';
-  apiKey: string;
 }
 
 const DocumentationGenerator = () => {
   const [documentation, setDocumentation] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [apiKeySet, setApiKeySet] = useState<boolean>(!!openAIService.getApiKey());
+  const [apiKeyLoading, setApiKeyLoading] = useState<boolean>(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   
+  // Check authentication
   useEffect(() => {
     if (!loading && !user) {
       toast.error('Please log in to access this feature');
@@ -55,31 +53,24 @@ const DocumentationGenerator = () => {
     defaultValues: {
       codeSnippet: '',
       language: 'javascript',
-      docType: 'function',
-      apiKey: ''
+      docType: 'function'
     }
   });
 
   const docType = watch('docType');
 
-  const saveApiKey = (key: string) => {
-    if (key.trim()) {
-      openAIService.setApiKey(key.trim());
-      setApiKeySet(true);
-      toast.success('API key saved for this session');
-    } else {
-      toast.error('Please enter a valid API key');
-    }
-  };
-
   const onSubmit = async (data: FormData) => {
     try {
-      if (!apiKeySet) {
-        saveApiKey(data.apiKey);
-        if (!openAIService.getApiKey()) return;
-      }
-
       setIsLoading(true);
+      setApiKeyLoading(true);
+      
+      // Toast notification that we're getting ready
+      toast.info('Preparing to generate documentation...');
+      
+      // Ensure API key is available
+      await openAIService.ensureApiKey();
+      setApiKeyLoading(false);
+      
       const result = await openAIService.generateDocumentation(
         data.codeSnippet,
         data.language,
@@ -89,6 +80,7 @@ const DocumentationGenerator = () => {
       setDocumentation(result);
       toast.success('Documentation generated successfully');
     } catch (error) {
+      setApiKeyLoading(false);
       let errorMessage = 'Failed to generate documentation';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -206,178 +198,104 @@ Features:
           <div className="lg:col-span-2">
             <AnimatedContainer animation="fade" delay={100}>
               <GlassCard className="p-6">
-                <Tabs defaultValue={apiKeySet ? "generate" : "apikey"}>
-                  <TabsList className="grid grid-cols-2 mb-4">
-                    <TabsTrigger value="generate">Generate</TabsTrigger>
-                    <TabsTrigger value="apikey">API Key</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="generate">
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <div>
+                    <Label>Documentation Type</Label>
+                    <RadioGroup 
+                      defaultValue="function" 
+                      className="grid grid-cols-3 gap-4 mt-1"
+                      onValueChange={(value) => setValue('docType', value as 'function' | 'class' | 'readme')}
+                    >
                       <div>
-                        <Label>Documentation Type</Label>
-                        <RadioGroup 
-                          defaultValue="function" 
-                          className="grid grid-cols-3 gap-4 mt-1"
-                          onValueChange={(value) => setValue('docType', value as 'function' | 'class' | 'readme')}
+                        <RadioGroupItem value="function" id="function" className="peer sr-only" />
+                        <Label
+                          htmlFor="function"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                         >
-                          <div>
-                            <RadioGroupItem 
-                              value="function" 
-                              id="function" 
-                              className="peer sr-only" 
-                            />
-                            <Label
-                              htmlFor="function"
-                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
-                              <Code className="mb-2 h-5 w-5" />
-                              Function
-                            </Label>
-                          </div>
-                          <div>
-                            <RadioGroupItem
-                              value="class"
-                              id="class"
-                              className="peer sr-only"
-                            />
-                            <Label
-                              htmlFor="class"
-                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
-                              <FileText className="mb-2 h-5 w-5" />
-                              Class
-                            </Label>
-                          </div>
-                          <div>
-                            <RadioGroupItem
-                              value="readme"
-                              id="readme"
-                              className="peer sr-only"
-                            />
-                            <Label
-                              htmlFor="readme"
-                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
-                              <FileText className="mb-2 h-5 w-5" />
-                              README
-                            </Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                      
-                      {docType !== 'readme' && (
-                        <div>
-                          <Label htmlFor="language">Programming Language</Label>
-                          <Select
-                            defaultValue="javascript"
-                            onValueChange={(value) => setValue('language', value)}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select language" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="javascript">JavaScript</SelectItem>
-                              <SelectItem value="typescript">TypeScript</SelectItem>
-                              <SelectItem value="python">Python</SelectItem>
-                              <SelectItem value="java">Java</SelectItem>
-                              <SelectItem value="csharp">C#</SelectItem>
-                              <SelectItem value="go">Go</SelectItem>
-                              <SelectItem value="rust">Rust</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                      
-                      <div>
-                        <Label htmlFor="codeSnippet">
-                          {docType === 'readme' ? 'Project Description' : 'Code Snippet'}
+                          <Code className="mb-2 h-5 w-5" />
+                          <span>Function</span>
                         </Label>
-                        <Textarea
-                          id="codeSnippet"
-                          placeholder={placeholderText}
-                          className="mt-1 min-h-32 font-mono text-sm"
-                          {...register('codeSnippet', { required: 'This field is required' })}
-                        />
-                        {errors.codeSnippet && (
-                          <p className="text-destructive text-sm mt-1">{errors.codeSnippet.message}</p>
-                        )}
                       </div>
-                      
-                      {!apiKeySet && (
-                        <Alert className="bg-amber-50 text-amber-800 border-amber-200">
-                          <Info className="h-4 w-4" />
-                          <AlertDescription>
-                            Please set your OpenAI API key in the API Key tab
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      
-                      <Button 
-                        type="submit" 
-                        className="w-full gap-2"
-                        disabled={isLoading || !apiKeySet}
-                      >
-                        {isLoading ? (
-                          <>
-                            <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary-foreground animate-spin"></div>
-                            <span>Generating...</span>
-                          </>
-                        ) : (
-                          <>
-                            <FileText size={16} />
-                            <span>Generate Documentation</span>
-                            <ChevronRight size={16} />
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  </TabsContent>
-                  
-                  <TabsContent value="apikey">
-                    <div className="space-y-4">
-                      <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertDescription>
-                          Your API key is stored locally in your browser session and is never sent to our servers.
-                        </AlertDescription>
-                      </Alert>
-                      
                       <div>
-                        <Label htmlFor="apiKey">OpenAI API Key</Label>
-                        <Input
-                          id="apiKey"
-                          type="password"
-                          placeholder="sk-..."
-                          {...register('apiKey')}
-                          className="mt-1 font-mono"
-                        />
-                      </div>
-                      
-                      <Button 
-                        onClick={handleSubmit((data) => saveApiKey(data.apiKey))}
-                        className="w-full"
-                      >
-                        Save API Key
-                      </Button>
-                      
-                      {apiKeySet && (
-                        <Button 
-                          variant="outline" 
-                          className="w-full mt-2"
-                          onClick={() => {
-                            openAIService.clearApiKey();
-                            setApiKeySet(false);
-                            setValue('apiKey', '');
-                            toast.success('API key removed');
-                          }}
+                        <RadioGroupItem value="class" id="class" className="peer sr-only" />
+                        <Label
+                          htmlFor="class"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                         >
-                          Clear API Key
-                        </Button>
-                      )}
+                          <FileText className="mb-2 h-5 w-5" />
+                          <span>Class</span>
+                        </Label>
+                      </div>
+                      <div>
+                        <RadioGroupItem value="readme" id="readme" className="peer sr-only" />
+                        <Label
+                          htmlFor="readme"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                        >
+                          <FileText className="mb-2 h-5 w-5" />
+                          <span>README</span>
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  
+                  {docType !== 'readme' && (
+                    <div>
+                      <Label htmlFor="language">Programming Language</Label>
+                      <Select
+                        defaultValue="javascript"
+                        onValueChange={(value) => setValue('language', value)}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="javascript">JavaScript</SelectItem>
+                          <SelectItem value="typescript">TypeScript</SelectItem>
+                          <SelectItem value="python">Python</SelectItem>
+                          <SelectItem value="java">Java</SelectItem>
+                          <SelectItem value="csharp">C#</SelectItem>
+                          <SelectItem value="go">Go</SelectItem>
+                          <SelectItem value="rust">Rust</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </TabsContent>
-                </Tabs>
+                  )}
+                  
+                  <div>
+                    <Label htmlFor="codeSnippet">
+                      {docType === 'readme' ? 'Project Description' : 'Code Snippet'}
+                    </Label>
+                    <Textarea
+                      id="codeSnippet"
+                      placeholder={placeholderText}
+                      className="mt-1 min-h-32 font-mono text-sm"
+                      {...register('codeSnippet', { required: 'This field is required' })}
+                    />
+                    {errors.codeSnippet && (
+                      <p className="text-destructive text-sm mt-1">{errors.codeSnippet.message}</p>
+                    )}
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full gap-2"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary-foreground animate-spin"></div>
+                        <span>{apiKeyLoading ? 'Preparing API Key...' : 'Generating...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText size={16} />
+                        <span>Generate Documentation</span>
+                        <ChevronRight size={16} />
+                      </>
+                    )}
+                  </Button>
+                </form>
               </GlassCard>
             </AnimatedContainer>
             

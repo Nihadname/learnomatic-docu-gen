@@ -1,7 +1,8 @@
-
 // IMPORTANT: This API key should be stored in a secure environment variable on the server
 // Using a key directly in the client side is for demonstration purposes only
 // In a production application, you should use a backend service to make API calls
+
+import { supabase } from '@/integrations/supabase/client';
 
 interface OpenAIRequestOptions {
   model: string;
@@ -42,13 +43,56 @@ class OpenAIService {
     sessionStorage.removeItem('openai_key');
   }
 
+  async fetchApiKeyFromSupabase(): Promise<string | null> {
+    try {
+      // Fetch the first API key from the 'keys' table
+      // Using 'any' type to bypass type checking as we know our table structure
+      const { data, error } = await (supabase as any)
+        .from('keys')
+        .select('key_value')
+        .limit(1)
+        .single();
+
+      if (error) {
+        console.error('Error fetching API key from Supabase:', error);
+        return null;
+      }
+
+      if (data && data.key_value) {
+        // Save the fetched key
+        this.setApiKey(data.key_value);
+        return data.key_value;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Failed to fetch API key:', error);
+      return null;
+    }
+  }
+
+  async ensureApiKey(): Promise<string | null> {
+    // Check if we already have a key
+    let key = this.getApiKey();
+    
+    // If not, try to fetch from Supabase
+    if (!key) {
+      key = await this.fetchApiKeyFromSupabase();
+    }
+    
+    return key;
+  }
+
   async generateExplanation(
     topic: string, 
     includeCode: boolean = false, 
     programmingLanguage: string = ''
   ): Promise<string> {
-    if (!this.getApiKey()) {
-      throw new Error('API key not set');
+    // Try to ensure we have an API key
+    const apiKey = await this.ensureApiKey();
+    
+    if (!apiKey) {
+      throw new Error('API key not found in database. Please contact your administrator.');
     }
 
     let systemPrompt = `You are an expert teacher who explains technical concepts clearly and concisely. 
@@ -81,7 +125,7 @@ class OpenAIService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getApiKey()}`
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify(options)
       });
@@ -106,8 +150,11 @@ class OpenAIService {
     language: string,
     docType: 'function' | 'class' | 'readme' = 'function'
   ): Promise<string> {
-    if (!this.getApiKey()) {
-      throw new Error('API key not set');
+    // Try to ensure we have an API key
+    const apiKey = await this.ensureApiKey();
+    
+    if (!apiKey) {
+      throw new Error('API key not found in database. Please contact your administrator.');
     }
 
     let systemPrompt = `You are an expert documentation writer who creates clear, concise, and helpful documentation.`;
@@ -141,7 +188,7 @@ class OpenAIService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.getApiKey()}`
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify(options)
       });

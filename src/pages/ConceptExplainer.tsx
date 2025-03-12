@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Brain, ChevronRight, Code, Info } from 'lucide-react';
+import { Brain, ChevronRight, Code } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
@@ -9,11 +9,9 @@ import ExplanationResult from '@/components/ai/ExplanationResult';
 import openAIService from '@/utils/openai';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,16 +19,16 @@ interface FormData {
   topic: string;
   includeCode: boolean;
   programmingLanguage: string;
-  apiKey: string;
 }
 
 const ConceptExplainer = () => {
   const [explanation, setExplanation] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [apiKeySet, setApiKeySet] = useState<boolean>(!!openAIService.getApiKey());
+  const [apiKeyLoading, setApiKeyLoading] = useState<boolean>(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   
+  // Check authentication
   useEffect(() => {
     if (!loading && !user) {
       toast.error('Please log in to access this feature');
@@ -54,31 +52,24 @@ const ConceptExplainer = () => {
     defaultValues: {
       topic: '',
       includeCode: true,
-      programmingLanguage: 'javascript',
-      apiKey: ''
+      programmingLanguage: 'javascript'
     }
   });
 
   const includeCode = watch('includeCode');
 
-  const saveApiKey = (key: string) => {
-    if (key.trim()) {
-      openAIService.setApiKey(key.trim());
-      setApiKeySet(true);
-      toast.success('API key saved for this session');
-    } else {
-      toast.error('Please enter a valid API key');
-    }
-  };
-
   const onSubmit = async (data: FormData) => {
     try {
-      if (!apiKeySet) {
-        saveApiKey(data.apiKey);
-        if (!openAIService.getApiKey()) return;
-      }
-
       setIsLoading(true);
+      setApiKeyLoading(true);
+      
+      // Toast notification that we're getting ready
+      toast.info('Preparing to generate explanation...');
+      
+      // Ensure API key is available
+      await openAIService.ensureApiKey();
+      setApiKeyLoading(false);
+      
       const result = await openAIService.generateExplanation(
         data.topic, 
         data.includeCode, 
@@ -88,6 +79,7 @@ const ConceptExplainer = () => {
       setExplanation(result);
       toast.success('Explanation generated successfully');
     } catch (error) {
+      setApiKeyLoading(false);
       let errorMessage = 'Failed to generate explanation';
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -116,137 +108,75 @@ const ConceptExplainer = () => {
           <div className="lg:col-span-2">
             <AnimatedContainer animation="fade" delay={100}>
               <GlassCard className="p-6">
-                <Tabs defaultValue={apiKeySet ? "explain" : "apikey"}>
-                  <TabsList className="grid grid-cols-2 mb-4">
-                    <TabsTrigger value="explain">Explain</TabsTrigger>
-                    <TabsTrigger value="apikey">API Key</TabsTrigger>
-                  </TabsList>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <div>
+                    <Label htmlFor="topic">
+                      What would you like explained?
+                    </Label>
+                    <Input
+                      id="topic"
+                      placeholder="e.g., CQRS pattern, React hooks, Docker containers"
+                      {...register('topic', { required: 'Please enter a topic' })}
+                      className="mt-1"
+                    />
+                    {errors.topic && (
+                      <p className="text-destructive text-sm mt-1">{errors.topic.message}</p>
+                    )}
+                  </div>
                   
-                  <TabsContent value="explain">
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                      <div>
-                        <Label htmlFor="topic">
-                          What would you like explained?
-                        </Label>
-                        <Input
-                          id="topic"
-                          placeholder="e.g., CQRS pattern, React hooks, Docker containers"
-                          {...register('topic', { required: 'Please enter a topic' })}
-                          className="mt-1"
-                        />
-                        {errors.topic && (
-                          <p className="text-destructive text-sm mt-1">{errors.topic.message}</p>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="includeCode"
-                          checked={includeCode}
-                          onCheckedChange={(checked) => setValue('includeCode', !!checked)}
-                        />
-                        <Label htmlFor="includeCode" className="cursor-pointer">
-                          Include code examples
-                        </Label>
-                      </div>
-                      
-                      {includeCode && (
-                        <div>
-                          <Label htmlFor="language">Programming Language</Label>
-                          <Select
-                            defaultValue="javascript"
-                            onValueChange={(value) => setValue('programmingLanguage', value)}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select language" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="javascript">JavaScript</SelectItem>
-                              <SelectItem value="typescript">TypeScript</SelectItem>
-                              <SelectItem value="python">Python</SelectItem>
-                              <SelectItem value="java">Java</SelectItem>
-                              <SelectItem value="csharp">C#</SelectItem>
-                              <SelectItem value="go">Go</SelectItem>
-                              <SelectItem value="rust">Rust</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                      
-                      {!apiKeySet && (
-                        <Alert className="bg-amber-50 text-amber-800 border-amber-200">
-                          <Info className="h-4 w-4" />
-                          <AlertDescription>
-                            Please set your OpenAI API key in the API Key tab
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      
-                      <Button 
-                        type="submit" 
-                        className="w-full gap-2"
-                        disabled={isLoading || !apiKeySet}
-                      >
-                        {isLoading ? (
-                          <>
-                            <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary-foreground animate-spin"></div>
-                            <span>Generating...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Brain size={16} />
-                            <span>Generate Explanation</span>
-                            <ChevronRight size={16} />
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  </TabsContent>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeCode"
+                      checked={includeCode}
+                      onCheckedChange={(checked) => setValue('includeCode', !!checked)}
+                    />
+                    <Label htmlFor="includeCode" className="cursor-pointer">
+                      Include code examples
+                    </Label>
+                  </div>
                   
-                  <TabsContent value="apikey">
-                    <div className="space-y-4">
-                      <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertDescription>
-                          Your API key is stored locally in your browser session and is never sent to our servers.
-                        </AlertDescription>
-                      </Alert>
-                      
-                      <div>
-                        <Label htmlFor="apiKey">OpenAI API Key</Label>
-                        <Input
-                          id="apiKey"
-                          type="password"
-                          placeholder="sk-..."
-                          {...register('apiKey')}
-                          className="mt-1 font-mono"
-                        />
-                      </div>
-                      
-                      <Button 
-                        onClick={handleSubmit((data) => saveApiKey(data.apiKey))}
-                        className="w-full"
+                  {includeCode && (
+                    <div>
+                      <Label htmlFor="language">Programming Language</Label>
+                      <Select
+                        defaultValue="javascript"
+                        onValueChange={(value) => setValue('programmingLanguage', value)}
                       >
-                        Save API Key
-                      </Button>
-                      
-                      {apiKeySet && (
-                        <Button 
-                          variant="outline" 
-                          className="w-full mt-2"
-                          onClick={() => {
-                            openAIService.clearApiKey();
-                            setApiKeySet(false);
-                            setValue('apiKey', '');
-                            toast.success('API key removed');
-                          }}
-                        >
-                          Clear API Key
-                        </Button>
-                      )}
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="javascript">JavaScript</SelectItem>
+                          <SelectItem value="typescript">TypeScript</SelectItem>
+                          <SelectItem value="python">Python</SelectItem>
+                          <SelectItem value="java">Java</SelectItem>
+                          <SelectItem value="csharp">C#</SelectItem>
+                          <SelectItem value="go">Go</SelectItem>
+                          <SelectItem value="rust">Rust</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </TabsContent>
-                </Tabs>
+                  )}
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full gap-2"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary-foreground animate-spin"></div>
+                        <span>{apiKeyLoading ? 'Preparing API Key...' : 'Generating...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Brain size={16} />
+                        <span>Generate Explanation</span>
+                        <ChevronRight size={16} />
+                      </>
+                    )}
+                  </Button>
+                </form>
               </GlassCard>
             </AnimatedContainer>
             
