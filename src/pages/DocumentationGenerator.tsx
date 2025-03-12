@@ -1343,7 +1343,7 @@ Features:
                       ) : (
                         <div className="code-editor" ref={editorRef}>
                           <input type="hidden" {...register('codeSnippet', { required: 'This field is required' })} />
-                          <div className="ensure-text-visible">
+                          <div className="ensure-text-visible" style={{ backgroundColor: '#eaedf2', color: 'black' }}>
                             <Editor
                               value={editorValue}
                               onValueChange={handleCodeChange}
@@ -1356,7 +1356,7 @@ Features:
                                 backgroundColor: '#eaedf2',
                                 color: '#000000',
                                 borderRadius: '0.375rem',
-                                fontWeight: 600,
+                                fontWeight: 800,
                               }}
                               placeholder={placeholderText}
                               textareaClassName="editor-textarea-element"
@@ -1365,7 +1365,7 @@ Features:
                                 const text = e.clipboardData.getData('text/plain');
                                 handleCodeChange(text);
                               }}
-                              textareaId="code-editor-textarea"
+                              textareaId="documentation-editor-textarea"
                             />
                           </div>
                           <div className="absolute top-2 right-2 flex gap-2">

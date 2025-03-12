@@ -341,3 +341,18 @@
   font-weight: 800 !important;
   -webkit-text-fill-color: white !important;
 }
+
+/* Documentation Generator specific styles */
+#documentation-editor-textarea {
+  color: black !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+  -webkit-text-fill-color: black !important;
+}
+
+.dark #documentation-editor-textarea {
+  color: white !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+  -webkit-text-fill-color: white !important;
+}
