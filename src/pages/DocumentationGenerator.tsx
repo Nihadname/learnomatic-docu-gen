@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { FileText, Info, ChevronRight, Code, Copy, Check } from 'lucide-react';
@@ -38,6 +38,7 @@ const DocumentationGenerator = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [apiKeyLoading, setApiKeyLoading] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const editorRef = useRef<HTMLDivElement>(null);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   
@@ -91,6 +92,15 @@ const DocumentationGenerator = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast.success('Code copied to clipboard');
+    });
+  };
+
+  const handlePasteCode = () => {
+    navigator.clipboard.readText().then(text => {
+      setValue('codeSnippet', text);
+    }).catch(err => {
+      console.error('Failed to read clipboard contents: ', err);
+      toast.error('Unable to paste from clipboard. Please try copying your code again.');
     });
   };
 
@@ -1213,7 +1223,7 @@ Features:
                           {...register('codeSnippet', { required: 'This field is required' })}
                         />
                       ) : (
-                        <div className="code-editor">
+                        <div className="code-editor" ref={editorRef}>
                           <input type="hidden" {...register('codeSnippet', { required: 'This field is required' })} />
                           <Editor
                             value={getValues('codeSnippet')}
@@ -1230,7 +1240,23 @@ Features:
                             }}
                             placeholder={placeholderText}
                             className="min-h-[250px] w-full focus:outline-none"
+                            onPaste={e => {
+                              // Let the default paste behavior work
+                              const text = e.clipboardData.getData('text/plain');
+                              setValue('codeSnippet', text);
+                            }}
+                            textareaId="code-editor-textarea"
                           />
+                          <Button 
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="absolute top-2 right-2 h-8 gap-1.5 text-xs"
+                            onClick={handlePasteCode}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-clipboard-paste"><path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M11 14h10"/><path d="m17 10 4 4-4 4"/></svg>
+                            <span>Paste</span>
+                          </Button>
                         </div>
                       )}
                     </div>
