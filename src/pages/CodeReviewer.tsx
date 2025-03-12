@@ -568,7 +568,7 @@ def quickProcess(file, drop_cols=[]):
                         {copied ? 'Copied!' : 'Copy'}
                       </Button>
                     </div>
-                    <div className="code-editor-container border border-input overflow-hidden bg-[#f0f2f5] dark:bg-[#2d3545]">
+                    <div className="code-editor-container border border-input overflow-hidden bg-[#eaedf2] dark:bg-[#2d3545]">
                       <div className="code-editor" ref={editorRef}>
                         <input type="hidden" {...register('codeSnippet', { required: 'This field is required' })} />
                         <Editor
@@ -580,10 +580,12 @@ def quickProcess(file, drop_cols=[]):
                             fontFamily: '"JetBrains Mono", "Fira Code", monospace',
                             fontSize: '14px',
                             minHeight: '250px',
-                            backgroundColor: '#f0f2f5',
-                            color: '#121212',
+                            backgroundColor: '#eaedf2',
+                            color: 'black',
                             borderRadius: '0.375rem',
+                            fontWeight: 600,
                           }}
+                          textareaClassName="editor-textarea-element"
                           className="min-h-[350px] w-full focus:outline-none"
                           onPaste={e => {
                             const text = e.clipboardData.getData('text/plain');

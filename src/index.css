@@ -279,3 +279,31 @@
   color: #ffffff !important;
   font-weight: 500;
 }
+
+/* Enhanced textarea visibility */
+.editor-textarea-element {
+  color: black !important;
+  background-color: #eaedf2 !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: black !important;
+}
+
+.dark .editor-textarea-element {
+  color: white !important;
+  background-color: #2d3545 !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: white !important;
+}
+
+/* Fix for code editor background */
+.code-editor-container:not(.dark) {
+  background-color: #eaedf2 !important;
+  color: black !important;
+}
+
+.dark .code-editor-container {
+  background-color: #2d3545 !important;
+  color: white !important;
+}
