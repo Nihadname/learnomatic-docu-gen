@@ -12,6 +12,9 @@ interface OpenAIRequestOptions {
   }[];
   temperature?: number;
   max_tokens?: number;
+  response_format?: {
+    type: 'json_object' | 'text';
+  };
 }
 
 export interface AIExplanationResponse {
@@ -373,6 +376,98 @@ class OpenAIService {
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Error generating documentation: ${error.message}`);
+      }
+      throw new Error('Unknown error occurred');
+    }
+  }
+
+  async reviewCode(
+    codeSnippet: string,
+    language: string,
+    reviewType: 'bugs' | 'performance' | 'style' | 'comprehensive'
+  ): Promise<any> {
+    // Try to ensure we have an API key
+    const apiKey = await this.ensureApiKey();
+    
+    if (!apiKey) {
+      throw new Error('API key not found in database. Please contact your administrator.');
+    }
+
+    let systemPrompt = `You are an expert code reviewer who specializes in identifying issues, suggesting improvements, and evaluating code quality.
+    Your task is to review the provided code snippet and provide a detailed analysis with a focus on ${reviewType === 'comprehensive' ? 'all aspects' : reviewType}.
+    
+    Analyze the code for:
+    ${reviewType === 'bugs' || reviewType === 'comprehensive' ? 
+      '- Bugs and potential runtime errors\n- Edge cases that are not handled\n- Logical errors and incorrect behavior\n- Security vulnerabilities\n- Null reference exceptions and type errors' : ''}
+    ${reviewType === 'performance' || reviewType === 'comprehensive' ? 
+      '- Performance bottlenecks\n- Inefficient algorithms or data structures\n- Unnecessary computations or operations\n- Memory leaks or excessive memory usage\n- Resource management issues' : ''}
+    ${reviewType === 'style' || reviewType === 'comprehensive' ? 
+      '- Code style and formatting issues\n- Naming conventions and readability\n- Documentation and comments\n- Code organization and structure\n- Adherence to best practices for the language' : ''}
+    
+    Provide your response in a structured JSON format with these fields:
+    {
+      "summary": "A concise summary of the overall code quality and main issues",
+      "issues": [
+        {
+          "type": "error" | "warning" | "suggestion",
+          "line": <line number>,
+          "message": "Description of the issue",
+          "fix": "Suggested fix or code snippet to resolve the issue"
+        }
+      ],
+      "improvements": ["List of general improvement suggestions"],
+      "score": <numerical score from 0-100>
+    }
+    
+    Make sure every identified issue has an accurate line number reference and a specific, actionable suggestion for fixing it.
+    Keep explanations clear and educational so the developer can learn from your feedback.`;
+
+    const options: OpenAIRequestOptions = {
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        {
+          role: "user",
+          content: `Review this ${language} code with a focus on ${reviewType}:\n\n${codeSnippet}`
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 2500,
+      response_format: { type: "json_object" }
+    };
+
+    try {
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(options)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to review code');
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      
+      // Parse the JSON response
+      try {
+        const reviewResult = JSON.parse(content);
+        return reviewResult;
+      } catch (parseError) {
+        console.error('Error parsing JSON response:', parseError);
+        throw new Error('Failed to parse code review results');
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Error reviewing code: ${error.message}`);
       }
       throw new Error('Unknown error occurred');
     }

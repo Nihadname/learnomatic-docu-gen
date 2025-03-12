@@ -6,35 +6,35 @@
 
 @layer base {
   :root {
-    --background: 210 30% 98%;
-    --foreground: 222 47% 11%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 210 100% 60%;
+    --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 215 20% 65%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5% 26%;
@@ -53,33 +53,33 @@
   }
 
   .dark {
-    --background: 222 47% 11%;
+    --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
-    --card: 222 47% 11%;
+    --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 11%;
+    --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 100% 60%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217 33% 18%;
+    --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 18%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217 33% 18%;
+    --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 63% 31%;
+    --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 33% 18%;
-    --input: 217 33% 18%;
-    --ring: 213 27% 84%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
     
     --sidebar-background: 240 6% 10%;
     --sidebar-foreground: 240 5% 96%;
@@ -146,16 +146,14 @@
 
 /* Custom Code Editor Styles */
 .code-editor {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', monospace;
-  counter-reset: line;
-  position: relative;
-  min-height: 200px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  line-height: 1.5;
 }
 
 .code-editor-container {
-  border-radius: 0.375rem;
-  overflow: hidden;
   position: relative;
+  border-radius: 0.5rem;
+  overflow: hidden;
 }
 
 .code-editor pre {
@@ -169,92 +167,81 @@
   box-shadow: none !important;
 }
 
-/* Override Prism Tomorrow Theme for better consistency */
-.theme-dark .code-editor {
-  background-color: var(--editor-bg);
-  color: var(--editor-fg);
+/* Light mode styling */
+.code-editor-container:not(.dark) {
+  background-color: #f8f9fa;
+  color: #2d3748;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Custom scrollbar for code editor */
-.code-editor ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.code-editor-container:not(.dark) .code-editor textarea,
+.code-editor-container:not(.dark) pre {
+  background-color: #f8f9fa !important;
+  color: #2d3748 !important;
 }
 
-.code-editor ::-webkit-scrollbar-track {
-  background: transparent;
+/* Dark mode styling */
+.dark .code-editor-container {
+  background-color: #2d3040;
+  color: #e2e8f0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.code-editor ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+.dark .code-editor textarea,
+.dark .code-editor pre {
+  background-color: #2d3040 !important;
+  color: #e2e8f0 !important;
 }
 
-.code-editor ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+/* Custom styling for syntax highlighting in light mode */
+.token.comment {
+  color: #718096;
 }
 
-/* Token colors for syntax highlighting */
-.token.comment,
-.token.prolog,
-.token.doctype,
-.token.cdata {
-  color: #6a9955;
+.token.string {
+  color: #38a169;
 }
 
-.token.punctuation {
-  color: #d4d4d4;
+.token.number {
+  color: #d69e2e;
 }
 
-.token.property,
-.token.tag,
-.token.boolean,
-.token.number,
-.token.constant,
-.token.symbol,
-.token.deleted {
-  color: #b5cea8;
+.token.keyword,
+.token.operator {
+  color: #805ad5;
 }
 
-.token.selector,
-.token.attr-name,
-.token.string,
-.token.char,
-.token.builtin,
-.token.inserted {
-  color: #ce9178;
+.token.function {
+  color: #3182ce;
 }
 
-.token.operator,
-.token.entity,
-.token.url,
-.language-css .token.string,
-.style .token.string {
-  color: #d4d4d4;
+/* Style for the code review issues */
+.issue-card {
+  transition: all 0.2s ease;
 }
 
-.token.atrule,
-.token.attr-value,
-.token.keyword {
-  color: #569cd6;
+.issue-card:hover {
+  transform: translateY(-2px);
 }
 
-.token.function,
-.token.class-name {
-  color: #dcdcaa;
+/* Line numbers for code editor (optional enhancement) */
+.code-editor-line-numbers {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 16px 8px;
+  text-align: right;
+  color: #a0aec0;
+  font-family: monospace;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  user-select: none;
 }
 
-.token.regex,
-.token.important,
-.token.variable {
-  color: #d16969;
-}
-
-.token.important,
-.token.bold {
-  font-weight: bold;
-}
-
-.token.italic {
-  font-style: italic;
+.dark .code-editor-line-numbers {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  color: #718096;
 }

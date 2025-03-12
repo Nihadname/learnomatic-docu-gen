@@ -11,7 +11,8 @@ import {
   UserPlus, 
   X,
   UserCircle,
-  LogOut
+  LogOut,
+  Code
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -63,6 +64,7 @@ const Header = () => {
     { path: '/', label: 'Home', icon: <Home size={18} /> },
     { path: '/concept-explainer', label: 'AI Explainer', icon: <Brain size={18} /> },
     { path: '/documentation-generator', label: 'Doc Generator', icon: <FileText size={18} /> },
+    { path: '/code-reviewer', label: 'Code Reviewer', icon: <Code size={18} /> },
   ];
 
   const handleSignOut = async () => {
