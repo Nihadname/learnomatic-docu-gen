@@ -326,3 +326,18 @@
   opacity: 1 !important;
   font-weight: 600 !important;
 }
+
+/* Extra styling for code reviewer textarea */
+#code-reviewer-textarea {
+  color: black !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+  -webkit-text-fill-color: black !important;
+}
+
+.dark #code-reviewer-textarea {
+  color: white !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+  -webkit-text-fill-color: white !important;
+}

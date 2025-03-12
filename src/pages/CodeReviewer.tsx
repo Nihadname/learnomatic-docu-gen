@@ -760,30 +760,32 @@ def quickProcess(file, drop_cols=[]):
                       </Button>
                     </div>
                     <div className="code-editor-container border border-input overflow-hidden bg-[#eaedf2] dark:bg-[#2d3545]">
-                      <div className="code-editor" ref={editorRef}>
+                      <div className="code-editor" ref={editorRef} style={{ color: 'black' }}>
                         <input type="hidden" {...register('codeSnippet', { required: 'This field is required' })} />
-                        <Editor
-                          value={editorValue}
-                          onValueChange={handleCodeChange}
-                          highlight={code => highlight(code, getLanguageHighlighter(language), language)}
-                          padding={16}
-                          style={{
-                            fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                            fontSize: '14px',
-                            minHeight: '250px',
-                            backgroundColor: '#eaedf2',
-                            color: 'black',
-                            borderRadius: '0.375rem',
-                            fontWeight: 600,
-                          }}
-                          textareaClassName="editor-textarea-element"
-                          className="min-h-[350px] w-full focus:outline-none"
-                          onPaste={e => {
-                            const text = e.clipboardData.getData('text/plain');
-                            handleCodeChange(text);
-                          }}
-                          textareaId="code-reviewer-textarea"
-                        />
+                        <div className="ensure-text-visible" style={{ backgroundColor: '#eaedf2', color: 'black' }}>
+                          <Editor
+                            value={editorValue}
+                            onValueChange={handleCodeChange}
+                            highlight={code => highlight(code, getLanguageHighlighter(language), language)}
+                            padding={16}
+                            style={{
+                              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                              fontSize: '14px',
+                              minHeight: '250px',
+                              backgroundColor: '#eaedf2',
+                              color: '#000000',
+                              borderRadius: '0.375rem',
+                              fontWeight: 800,
+                            }}
+                            textareaClassName="editor-textarea-element"
+                            className="min-h-[350px] w-full focus:outline-none"
+                            onPaste={e => {
+                              const text = e.clipboardData.getData('text/plain');
+                              handleCodeChange(text);
+                            }}
+                            textareaId="code-reviewer-textarea"
+                          />
+                        </div>
                         <div className="absolute top-2 right-2 flex gap-2">
                           <Button 
                             type="button"
