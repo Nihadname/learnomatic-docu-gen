@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { FileText, Info, ChevronRight, Code, Copy, Check } from 'lucide-react';
+import { FileText, Info, ChevronRight, Code, Copy, Check, Download, FileDown } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
@@ -26,6 +26,8 @@ import 'prismjs/components/prism-go';
 import 'prismjs/components/prism-rust';
 import 'prismjs/components/prism-markdown';
 import 'prismjs/themes/prism-tomorrow.css';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface FormData {
   codeSnippet: string;
@@ -39,7 +41,12 @@ const DocumentationGenerator = () => {
   const [apiKeyLoading, setApiKeyLoading] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [editorValue, setEditorValue] = useState<string>('');
+  const [exportLoading, setExportLoading] = useState<{pdf: boolean, markdown: boolean}>({
+    pdf: false,
+    markdown: false
+  });
   const editorRef = useRef<HTMLDivElement>(null);
+  const documentationRef = useRef<HTMLDivElement>(null);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   
@@ -145,6 +152,99 @@ const DocumentationGenerator = () => {
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const exportToMarkdown = () => {
+    setExportLoading(prev => ({ ...prev, markdown: true }));
+    try {
+      // Create a blob with the markdown content
+      const blob = new Blob([documentation], { type: 'text/markdown' });
+      
+      // Create a download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Generate filename based on docType and language
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+      const fileName = `documentation_${docType}_${language || 'readme'}_${timestamp}.md`;
+      
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Documentation exported as Markdown');
+    } catch (error) {
+      console.error('Failed to export markdown', error);
+      toast.error('Failed to export as Markdown');
+    } finally {
+      setExportLoading(prev => ({ ...prev, markdown: false }));
+    }
+  };
+
+  const exportToPDF = async () => {
+    if (!documentationRef.current) return;
+    
+    setExportLoading(prev => ({ ...prev, pdf: true }));
+    try {
+      toast.info('Preparing PDF export...');
+      
+      // Generate filename based on docType and language
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+      const fileName = `documentation_${docType}_${language || 'readme'}_${timestamp}.pdf`;
+      
+      // Create a new jsPDF instance
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      // Get the content element
+      const element = documentationRef.current;
+      
+      // Use html2canvas to capture the element
+      const canvas = await html2canvas(element, {
+        scale: 2, // Higher scale for better quality
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+      
+      // Calculate dimensions to fit on PDF
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      // Add image to PDF
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      // Add new pages if content is longer than one page
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      // Save the PDF
+      pdf.save(fileName);
+      
+      toast.success('Documentation exported as PDF');
+    } catch (error) {
+      console.error('Failed to export PDF', error);
+      toast.error('Failed to export as PDF');
+    } finally {
+      setExportLoading(prev => ({ ...prev, pdf: false }));
     }
   };
 
@@ -1353,7 +1453,43 @@ Features:
           
           <div className="lg:col-span-3">
             <AnimatedContainer animation="fade" delay={300}>
-              <ExplanationResult content={documentation} isLoading={isLoading} />
+              {documentation && (
+                <div>
+                  <div className="bg-white dark:bg-slate-800 rounded-md shadow-sm mb-4 p-4 flex gap-3 justify-end">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex items-center gap-1"
+                      onClick={exportToMarkdown}
+                      disabled={exportLoading.markdown || !documentation}
+                    >
+                      {exportLoading.markdown ? (
+                        <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary animate-spin mr-1"></div>
+                      ) : (
+                        <FileDown size={16} />
+                      )}
+                      <span>Export as Markdown</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex items-center gap-1"
+                      onClick={exportToPDF}
+                      disabled={exportLoading.pdf || !documentation}
+                    >
+                      {exportLoading.pdf ? (
+                        <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary animate-spin mr-1"></div>
+                      ) : (
+                        <Download size={16} />
+                      )}
+                      <span>Export as PDF</span>
+                    </Button>
+                  </div>
+                  <div ref={documentationRef}>
+                    <ExplanationResult content={documentation} isLoading={isLoading} />
+                  </div>
+                </div>
+              )}
               
               {!documentation && !isLoading && (
                 <GlassCard className="p-8 flex flex-col items-center justify-center min-h-[400px] text-center">
