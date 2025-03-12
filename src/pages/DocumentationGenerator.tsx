@@ -38,6 +38,7 @@ const DocumentationGenerator = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [apiKeyLoading, setApiKeyLoading] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [editorValue, setEditorValue] = useState<string>('');
   const editorRef = useRef<HTMLDivElement>(null);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -70,6 +71,11 @@ const DocumentationGenerator = () => {
     }
   });
 
+  // Sync the form value with our local state
+  useEffect(() => {
+    setEditorValue(getValues('codeSnippet'));
+  }, [getValues]);
+
   const docType = watch('docType');
   const language = watch('language');
 
@@ -87,7 +93,7 @@ const DocumentationGenerator = () => {
   };
 
   const copyToClipboard = () => {
-    const code = getValues('codeSnippet');
+    const code = editorValue;
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -98,10 +104,16 @@ const DocumentationGenerator = () => {
   const handlePasteCode = () => {
     navigator.clipboard.readText().then(text => {
       setValue('codeSnippet', text);
+      setEditorValue(text);
     }).catch(err => {
       console.error('Failed to read clipboard contents: ', err);
       toast.error('Unable to paste from clipboard. Please try copying your code again.');
     });
+  };
+
+  const handleCodeChange = (code: string) => {
+    setValue('codeSnippet', code);
+    setEditorValue(code);
   };
 
   const onSubmit = async (data: FormData) => {
@@ -137,9 +149,11 @@ const DocumentationGenerator = () => {
   };
 
   const loadExample = (example: string) => {
+    let codeContent = '';
+    
     switch (example) {
       case 'functionJs':
-        setValue('codeSnippet', `/**
+        codeContent = `/**
  * Calculates the total price for a shopping cart, applying discount and tax.
  * 
  * @param {Array<{id: string, name: string, price: number, quantity: number}>} items - Array of cart items
@@ -209,12 +223,12 @@ function calculateTotalPrice(items, discount = 0, taxRate = 0.1, options = {}) {
       lineTotal: formatAmount(item.price * item.quantity)
     }))
   };
-}`);
+}`;
         setValue('language', 'javascript');
         setValue('docType', 'function');
         break;
       case 'classJava':
-        setValue('codeSnippet', `package com.learnomatic.user;
+        codeContent = `package com.learnomatic.user;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -418,12 +432,12 @@ public class UserManager {
     private boolean isValidEmail(String email) {
         return email != null && EMAIL_PATTERN.matcher(email).matches();
     }
-}`);
+}`;
         setValue('language', 'java');
         setValue('docType', 'class');
         break;
       case 'classPython':
-        setValue('codeSnippet', `from typing import List, Dict, Optional, Union, Any
+        codeContent = `from typing import List, Dict, Optional, Union, Any
 import logging
 import json
 from datetime import datetime, timedelta
@@ -766,12 +780,12 @@ class CSVDataProcessor(DataProcessor):
             
             transformed_data.append(transformed_row)
         
-        return transformed_data`);
+        return transformed_data`;
         setValue('language', 'python');
         setValue('docType', 'class');
         break;
       case 'classCsharp':
-        setValue('codeSnippet', `using System;
+        codeContent = `using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1092,12 +1106,12 @@ namespace LearnOmatic.Security
             GC.SuppressFinalize(this);
         }
     }
-}`);
+}`;
         setValue('language', 'csharp');
         setValue('docType', 'class');
         break;
       case 'readme':
-        setValue('codeSnippet', `Project: LearnOmatic - AI-Powered Learning and Documentation Assistant
+        codeContent = `Project: LearnOmatic - AI-Powered Learning and Documentation Assistant
 
 This web application helps users understand complex technical concepts and generate documentation for their code. It integrates with OpenAI's API to provide AI-powered explanations and documentation generation.
 
@@ -1105,11 +1119,15 @@ Features:
 - AI Concept Explainer: Explains technical topics with examples
 - Documentation Generator: Creates documentation for code
 - Authentication system
-- Responsive design for all devices`);
+- Responsive design for all devices`;
         setValue('language', '');
         setValue('docType', 'readme');
         break;
     }
+    
+    // Set the editor value after setting form values
+    setValue('codeSnippet', codeContent);
+    setEditorValue(codeContent);
   };
 
   const placeholderText = docType === 'readme' 
@@ -1226,8 +1244,8 @@ Features:
                         <div className="code-editor" ref={editorRef}>
                           <input type="hidden" {...register('codeSnippet', { required: 'This field is required' })} />
                           <Editor
-                            value={getValues('codeSnippet')}
-                            onValueChange={code => setValue('codeSnippet', code)}
+                            value={editorValue}
+                            onValueChange={handleCodeChange}
                             highlight={code => highlight(code, getLanguageHighlighter(language), language)}
                             padding={16}
                             style={{
@@ -1241,22 +1259,36 @@ Features:
                             placeholder={placeholderText}
                             className="min-h-[250px] w-full focus:outline-none"
                             onPaste={e => {
-                              // Let the default paste behavior work
                               const text = e.clipboardData.getData('text/plain');
-                              setValue('codeSnippet', text);
+                              handleCodeChange(text);
                             }}
                             textareaId="code-editor-textarea"
                           />
-                          <Button 
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="absolute top-2 right-2 h-8 gap-1.5 text-xs"
-                            onClick={handlePasteCode}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-clipboard-paste"><path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M11 14h10"/><path d="m17 10 4 4-4 4"/></svg>
-                            <span>Paste</span>
-                          </Button>
+                          <div className="absolute top-2 right-2 flex gap-2">
+                            <Button 
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 gap-1.5 text-xs"
+                              onClick={handlePasteCode}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-clipboard-paste"><path d="M15 2H9a1 1 0 0 0-1 1v2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V3c0-.6-.4-1-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M11 14h10"/><path d="m17 10 4 4-4 4"/></svg>
+                              <span>Paste</span>
+                            </Button>
+                            <Button 
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              className="h-8 gap-1.5 text-xs"
+                              onClick={() => {
+                                setValue('codeSnippet', '');
+                                setEditorValue('');
+                              }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                              <span>Clear</span>
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
