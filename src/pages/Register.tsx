@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@/context/AuthContext';
 
 interface RegisterFormData {
   name: string;
@@ -24,6 +25,14 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { signUp, user } = useAuth();
+  
+  // If user is already logged in, redirect to home page
+  React.useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
   
   const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterFormData>({
     defaultValues: {
@@ -38,18 +47,24 @@ const Register = () => {
   const password = watch('password');
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (data.password !== data.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    
     setIsLoading(true);
     
-    // For now, this is just a placeholder for actual registration
-    // In a real app, you would call the Supabase auth methods here
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await signUp(data.email, data.password, { name: data.name });
       
-      toast.success('Authentication feature coming soon!');
-      
-      // For demo purposes, let's navigate to the login page
-      // navigate('/login');
+      if (error) {
+        toast.error(error.message || 'Failed to register');
+      } else {
+        toast.success('Registration successful! Please check your email to verify your account.');
+        // In a real-world scenario, we might want to navigate to a "verification required" page
+        // For now, we'll navigate to the login page
+        navigate('/login');
+      }
     } catch (error) {
       let message = 'Failed to register';
       if (error instanceof Error) {

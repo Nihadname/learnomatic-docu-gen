@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@/context/AuthContext';
 
 interface LoginFormData {
   email: string;
@@ -22,6 +23,14 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { signIn, user } = useAuth();
+  
+  // If user is already logged in, redirect to home page
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     defaultValues: {
@@ -34,16 +43,15 @@ const Login = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     
-    // For now, this is just a placeholder for actual authentication
-    // In a real app, you would call the Supabase auth methods here
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { error } = await signIn(data.email, data.password);
       
-      toast.success('Authentication feature coming soon!');
-      
-      // For demo purposes, let's navigate to the home page
-      // navigate('/');
+      if (error) {
+        toast.error(error.message || 'Failed to login');
+      } else {
+        toast.success('Logged in successfully');
+        navigate('/');
+      }
     } catch (error) {
       let message = 'Failed to login';
       if (error instanceof Error) {
