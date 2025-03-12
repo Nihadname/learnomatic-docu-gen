@@ -68,25 +68,25 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
               <blockquote className="border-l-4 border-primary/50 pl-4 italic my-4" {...props} />
             ),
             hr: ({ node, ...props }) => <Separator className="my-4" {...props} />,
-            code({ node, inline, className, children, ...props }) {
+            code: ({ className, children, ...props }) => {
               const match = /language-(\w+)/.exec(className || '');
-              return !inline && match ? (
-                <SyntaxHighlighter
-                  style={oneLight}
-                  language={match[1]}
-                  PreTag="div"
-                  className="rounded-md my-4"
-                  {...props}
-                >
-                  {String(children).replace(/\n$/, '')}
-                </SyntaxHighlighter>
-              ) : (
+              return !className ? (
                 <code
                   className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono"
                   {...props}
                 >
                   {children}
                 </code>
+              ) : (
+                <SyntaxHighlighter
+                  style={oneLight}
+                  language={match ? match[1] : ''}
+                  PreTag="div"
+                  className="rounded-md my-4"
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
               );
             },
           }}

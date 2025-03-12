@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Brain, ChevronRight, Code, Info } from 'lucide-react';
@@ -15,6 +15,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface FormData {
   topic: string;
@@ -27,6 +29,8 @@ const ConceptExplainer = () => {
   const [explanation, setExplanation] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [apiKeySet, setApiKeySet] = useState<boolean>(!!openAIService.getApiKey());
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
   
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     defaultValues: {
@@ -152,7 +156,7 @@ const ConceptExplainer = () => {
                       )}
                       
                       {!apiKeySet && (
-                        <Alert variant="warning" className="bg-amber-50 text-amber-800 border-amber-200">
+                        <Alert className="bg-amber-50 text-amber-800 border-amber-200">
                           <Info className="h-4 w-4" />
                           <AlertDescription>
                             Please set your OpenAI API key in the API Key tab
