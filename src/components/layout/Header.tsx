@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,8 +9,11 @@ import {
   LogIn, 
   Menu, 
   UserPlus, 
-  X
+  X,
+  UserCircle,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const NavLink = ({ 
   to, 
@@ -42,6 +44,7 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { user, loading, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -61,6 +64,14 @@ const Header = () => {
     { path: '/concept-explainer', label: 'AI Explainer', icon: <Brain size={18} /> },
     { path: '/documentation-generator', label: 'Doc Generator', icon: <FileText size={18} /> },
   ];
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    }
+  };
 
   return (
     <header 
@@ -97,18 +108,37 @@ const Header = () => {
 
         {/* Authentication Buttons - Desktop */}
         <div className="hidden md:flex items-center space-x-2">
-          <Link to="/login">
-            <Button variant="outline" size="sm" className="gap-2">
-              <LogIn size={16} />
-              <span>Log In</span>
-            </Button>
-          </Link>
-          <Link to="/register">
-            <Button size="sm" className="gap-2">
-              <UserPlus size={16} />
-              <span>Sign Up</span>
-            </Button>
-          </Link>
+          {loading ? (
+            <div className="h-5 w-5 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
+          ) : user ? (
+            <>
+              <Link to="/profile">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <UserCircle size={16} />
+                  <span>Profile</span>
+                </Button>
+              </Link>
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleSignOut}>
+                <LogOut size={16} />
+                <span>Sign Out</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <LogIn size={16} />
+                  <span>Log In</span>
+                </Button>
+              </Link>
+              <Link to="/register">
+                <Button size="sm" className="gap-2">
+                  <UserPlus size={16} />
+                  <span>Sign Up</span>
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -134,20 +164,46 @@ const Header = () => {
               />
             ))}
             <div className="h-px w-full bg-border/50 my-2"></div>
-            <Link 
-              to="/login" 
-              className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg"
-            >
-              <LogIn size={18} />
-              <span>Log In</span>
-            </Link>
-            <Link 
-              to="/register" 
-              className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg"
-            >
-              <UserPlus size={18} />
-              <span>Sign Up</span>
-            </Link>
+            
+            {loading ? (
+              <div className="flex justify-center py-4">
+                <div className="h-5 w-5 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
+              </div>
+            ) : user ? (
+              <>
+                <Link 
+                  to="/profile" 
+                  className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg"
+                >
+                  <UserCircle size={18} />
+                  <span>Profile</span>
+                </Link>
+                <button 
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg w-full text-left"
+                >
+                  <LogOut size={18} />
+                  <span>Sign Out</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link 
+                  to="/login" 
+                  className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg"
+                >
+                  <LogIn size={18} />
+                  <span>Log In</span>
+                </Link>
+                <Link 
+                  to="/register" 
+                  className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg"
+                >
+                  <UserPlus size={18} />
+                  <span>Sign Up</span>
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       )}

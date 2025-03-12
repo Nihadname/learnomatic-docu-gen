@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import GlassCard from '@/components/ui-custom/GlassCard';
@@ -8,7 +8,9 @@ import { Brain, FileText, ChevronRight, UserCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  console.log('Auth state in Index:', { user, loading }); // Debug log
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/50">
@@ -135,7 +137,9 @@ const Index = () => {
               Get started with LearnOmatic today and transform how you learn and document technical concepts.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              {user ? (
+              {loading ? (
+                <div className="h-10 w-10 rounded-full border-4 border-t-transparent border-primary mx-auto animate-spin"></div>
+              ) : user ? (
                 <Link to="/profile">
                   <Button size="lg" className="w-full sm:w-auto gap-2">
                     <UserCircle size={18} />
@@ -183,7 +187,9 @@ const Index = () => {
               <div>
                 <h4 className="font-medium mb-2">Account</h4>
                 <ul className="space-y-1">
-                  {user ? (
+                  {loading ? (
+                    <li className="text-sm text-muted-foreground">Loading...</li>
+                  ) : user ? (
                     <li><Link to="/profile" className="text-sm text-muted-foreground hover:text-primary">My Profile</Link></li>
                   ) : (
                     <>
