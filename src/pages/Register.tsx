@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -24,6 +23,7 @@ interface RegisterFormData {
 const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const navigate = useNavigate();
   const { signUp, user } = useAuth();
   
@@ -47,6 +47,11 @@ const Register = () => {
   const password = watch('password');
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (!acceptTerms) {
+      toast.error('Please accept the terms and conditions');
+      return;
+    }
+
     if (data.password !== data.confirmPassword) {
       toast.error('Passwords do not match');
       return;
@@ -61,8 +66,6 @@ const Register = () => {
         toast.error(error.message || 'Failed to register');
       } else {
         toast.success('Registration successful! Please check your email to verify your account.');
-        // In a real-world scenario, we might want to navigate to a "verification required" page
-        // For now, we'll navigate to the login page
         navigate('/login');
       }
     } catch (error) {
@@ -171,9 +174,8 @@ const Register = () => {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="acceptTerms"
-                  {...register('acceptTerms', { 
-                    required: 'You must accept the terms and conditions'
-                  })}
+                  checked={acceptTerms}
+                  onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
                 />
                 <Label htmlFor="acceptTerms" className="text-sm">
                   I agree to the{' '}
@@ -186,7 +188,7 @@ const Register = () => {
                   </Link>
                 </Label>
               </div>
-              {errors.acceptTerms && (
+              {!acceptTerms && errors.acceptTerms && (
                 <p className="text-destructive text-sm">{errors.acceptTerms.message}</p>
               )}
               
