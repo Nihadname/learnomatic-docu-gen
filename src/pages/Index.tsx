@@ -1,13 +1,15 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
 import Header from '@/components/layout/Header';
-import { Brain, FileText, ChevronRight } from 'lucide-react';
+import { Brain, FileText, ChevronRight, UserCircle } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const Index = () => {
+  const { user } = useAuth();
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/50">
       <Header />
@@ -133,12 +135,23 @@ const Index = () => {
               Get started with LearnOmatic today and transform how you learn and document technical concepts.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link to="/register">
-                <Button size="lg" className="w-full sm:w-auto">Create Free Account</Button>
-              </Link>
-              <Link to="/concept-explainer">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto">Try Without Account</Button>
-              </Link>
+              {user ? (
+                <Link to="/profile">
+                  <Button size="lg" className="w-full sm:w-auto gap-2">
+                    <UserCircle size={18} />
+                    <span>My Profile</span>
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/register">
+                    <Button size="lg" className="w-full sm:w-auto">Create Free Account</Button>
+                  </Link>
+                  <Link to="/concept-explainer">
+                    <Button variant="outline" size="lg" className="w-full sm:w-auto">Try Without Account</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </GlassCard>
         </AnimatedContainer>
@@ -170,8 +183,14 @@ const Index = () => {
               <div>
                 <h4 className="font-medium mb-2">Account</h4>
                 <ul className="space-y-1">
-                  <li><Link to="/login" className="text-sm text-muted-foreground hover:text-primary">Log In</Link></li>
-                  <li><Link to="/register" className="text-sm text-muted-foreground hover:text-primary">Sign Up</Link></li>
+                  {user ? (
+                    <li><Link to="/profile" className="text-sm text-muted-foreground hover:text-primary">My Profile</Link></li>
+                  ) : (
+                    <>
+                      <li><Link to="/login" className="text-sm text-muted-foreground hover:text-primary">Log In</Link></li>
+                      <li><Link to="/register" className="text-sm text-muted-foreground hover:text-primary">Sign Up</Link></li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>
