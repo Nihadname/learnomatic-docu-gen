@@ -170,27 +170,27 @@
 /* Light mode styling */
 .code-editor-container:not(.dark) {
   background-color: #f0f2f5;
-  color: #2d3748;
+  color: #121212;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .code-editor-container:not(.dark) .code-editor textarea,
 .code-editor-container:not(.dark) pre {
   background-color: #f0f2f5 !important;
-  color: #2d3748 !important;
+  color: #121212 !important;
 }
 
 /* Dark mode styling */
 .dark .code-editor-container {
   background-color: #2d3545;
-  color: #e2e8f0;
+  color: #ffffff;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .dark .code-editor textarea,
 .dark .code-editor pre {
   background-color: #2d3545 !important;
-  color: #f0f4f8 !important;
+  color: #ffffff !important;
 }
 
 /* Custom styling for syntax highlighting in light mode */
@@ -266,4 +266,16 @@
   background-color: rgba(0, 0, 0, 0.2);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   color: #718096;
+}
+
+.code-editor textarea {
+  caret-color: #1a56db !important; /* Bright blue cursor for better visibility */
+  color: #121212 !important;
+  font-weight: 500;
+}
+
+.dark .code-editor textarea {
+  caret-color: #3b82f6 !important; /* Bright blue cursor for dark mode */
+  color: #ffffff !important;
+  font-weight: 500;
 }

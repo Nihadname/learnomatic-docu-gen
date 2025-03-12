@@ -581,7 +581,7 @@ def quickProcess(file, drop_cols=[]):
                             fontSize: '14px',
                             minHeight: '250px',
                             backgroundColor: '#f0f2f5',
-                            color: '#333',
+                            color: '#121212',
                             borderRadius: '0.375rem',
                           }}
                           className="min-h-[350px] w-full focus:outline-none"
