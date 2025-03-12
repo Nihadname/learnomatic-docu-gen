@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -32,6 +31,25 @@ const ConceptExplainer = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   
+  useEffect(() => {
+    if (!loading && !user) {
+      toast.error('Please log in to access this feature');
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-8 w-8 rounded-full border-4 border-t-transparent border-primary animate-spin"></div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return null;
+  }
+
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     defaultValues: {
       topic: '',
@@ -262,7 +280,6 @@ const ConceptExplainer = () => {
           
           <div className="lg:col-span-3">
             <AnimatedContainer animation="fade" delay={300}>
-              {/* Result card will only show once there's content */}
               <ExplanationResult content={explanation} isLoading={isLoading} />
               
               {!explanation && !isLoading && (
@@ -279,7 +296,6 @@ const ConceptExplainer = () => {
         </div>
       </main>
 
-      {/* Simple footer */}
       <footer className="bg-background border-t border-border py-6">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} LearnOmatic | AI-Powered Learning & Documentation Assistant</p>
