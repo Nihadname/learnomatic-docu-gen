@@ -585,6 +585,83 @@ const ConceptExplainer = () => {
               )}
               <ExplanationResult content={explanation} isLoading={isLoading} />
               
+              {isLoading && (
+                <GlassCard className="p-8">
+                  <div className="flex flex-col items-center justify-center mb-8">
+                    <div className="relative">
+                      <div className="h-16 w-16 rounded-full border-4 border-primary/30 mb-4"></div>
+                      <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-t-primary border-l-primary border-r-transparent border-b-transparent animate-spin"></div>
+                      <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-transparent border-b-primary border-r-primary animate-spin animation-delay-500" style={{ animationDuration: '2s' }}></div>
+                    </div>
+                    <div className="mt-4 text-center">
+                      <h3 className="text-lg font-medium">Crafting Interactive Explanation</h3>
+                      <p className="text-sm text-muted-foreground mt-1">AI is creating an engaging explanation with visual elements and examples...</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {/* Title Section */}
+                    <div className="space-y-2">
+                      <div className="h-8 bg-primary/10 rounded-md animate-pulse w-2/3 mx-auto"></div>
+                      <div className="flex justify-center gap-3 my-3">
+                        <div className="h-5 w-24 bg-muted/30 rounded-full animate-pulse delay-100"></div>
+                        <div className="h-5 w-24 bg-muted/30 rounded-full animate-pulse delay-150"></div>
+                        <div className="h-5 w-24 bg-muted/30 rounded-full animate-pulse delay-200"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Quick Summary */}
+                    <div className="p-4 border border-muted/30 rounded-md bg-muted/5 space-y-2">
+                      <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/4 mb-2"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-11/12"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-3/4"></div>
+                    </div>
+                    
+                    {/* Visual Sections */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/2"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-11/12"></div>
+                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                        </div>
+                      </div>
+                      <div className="border border-dashed border-muted/50 rounded-md p-3 bg-muted/5 flex items-center justify-center">
+                        <div className="w-full h-32 bg-primary/5 animate-pulse rounded-md flex items-center justify-center">
+                          <div className="text-xs text-muted-foreground">Visual Diagram</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Code Example */}
+                    <div className="p-4 border border-muted rounded-md bg-background/80">
+                      <div className="h-5 w-1/3 bg-primary/10 rounded-md animate-pulse mb-3"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-full"></div>
+                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-11/12"></div>
+                        <div className="ml-4 h-4 bg-muted/20 rounded-md animate-pulse w-10/12 delay-100"></div>
+                        <div className="ml-4 h-4 bg-muted/20 rounded-md animate-pulse w-11/12 delay-150"></div>
+                        <div className="ml-8 h-4 bg-muted/20 rounded-md animate-pulse w-9/12 delay-200"></div>
+                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-1/2 delay-100"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Interactive Quiz */}
+                    <div className="space-y-3">
+                      <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/3"></div>
+                      <div className="h-5 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                      <div className="space-y-2 mt-3">
+                        <div className="h-10 bg-muted/20 rounded-md animate-pulse w-full"></div>
+                        <div className="h-10 bg-muted/20 rounded-md animate-pulse w-full"></div>
+                        <div className="h-10 bg-muted/20 rounded-md animate-pulse w-full"></div>
+                      </div>
+                    </div>
+                  </div>
+                </GlassCard>
+              )}
+              
               {!explanation && !isLoading && (
                 <GlassCard className="p-8 flex flex-col items-center justify-center min-h-[400px] text-center">
                   <Brain size={48} className="text-muted-foreground mb-6 opacity-50" />

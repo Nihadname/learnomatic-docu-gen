@@ -1497,35 +1497,76 @@ Features:
               
               {isLoading && (
                 <GlassCard className="p-8">
-                  <div className="flex items-center justify-center mb-6">
-                    <div className="h-12 w-12 rounded-full border-4 border-t-transparent border-primary animate-spin"></div>
+                  <div className="flex flex-col items-center justify-center mb-8">
+                    <div className="relative">
+                      <div className="h-16 w-16 rounded-full border-4 border-primary/30 mb-4"></div>
+                      <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-t-primary border-l-primary border-r-transparent border-b-transparent animate-spin"></div>
+                      <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-transparent border-b-primary border-r-primary animate-spin animation-delay-500" style={{ animationDuration: '2s' }}></div>
+                    </div>
+                    <div className="mt-4 text-center">
+                      <h3 className="text-lg font-medium">Generating Comprehensive Documentation</h3>
+                      <p className="text-sm text-muted-foreground mt-1">AI is analyzing your code and creating detailed documentation...</p>
+                    </div>
                   </div>
                   
-                  <div className="space-y-4">
-                    <div className="h-8 bg-muted/30 rounded-md animate-pulse"></div>
-                    
+                  <div className="space-y-6">
+                    {/* Documentation Header */}
                     <div className="space-y-2">
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-3/4"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-2/3"></div>
+                      <div className="h-8 bg-primary/10 rounded-md animate-pulse w-2/3 mx-auto"></div>
+                      <div className="flex justify-center gap-3 my-3">
+                        <div className="h-5 w-24 bg-muted/30 rounded-full animate-pulse"></div>
+                        <div className="h-5 w-24 bg-muted/30 rounded-full animate-pulse"></div>
+                      </div>
+                      <div className="h-px bg-border w-full my-4"></div>
                     </div>
                     
-                    <div className="mt-6 space-y-2">
-                      <div className="h-6 bg-muted/30 rounded-md animate-pulse w-1/4"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-3/4"></div>
+                    {/* Overview Section */}
+                    <div className="space-y-3">
+                      <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/4"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                        <div className="h-4 bg-muted/30 rounded-md animate-pulse w-11/12"></div>
+                        <div className="h-4 bg-muted/30 rounded-md animate-pulse w-3/4"></div>
+                      </div>
                     </div>
                     
-                    <div className="mt-6 space-y-2">
-                      <div className="h-6 bg-muted/30 rounded-md animate-pulse w-1/3"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-5/6"></div>
+                    {/* Parameters Section */}
+                    <div className="space-y-3">
+                      <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/4"></div>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className="h-5 w-1/4 bg-muted/40 rounded-md animate-pulse"></div>
+                          <div className="h-5 w-2/3 bg-muted/30 rounded-md animate-pulse"></div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-5 w-1/4 bg-muted/40 rounded-md animate-pulse"></div>
+                          <div className="h-5 w-1/2 bg-muted/30 rounded-md animate-pulse"></div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-5 w-1/4 bg-muted/40 rounded-md animate-pulse"></div>
+                          <div className="h-5 w-3/5 bg-muted/30 rounded-md animate-pulse"></div>
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="p-4 border border-muted rounded-md mt-6">
-                      <div className="h-20 bg-muted/20 rounded-md animate-pulse w-full"></div>
+                    {/* Code Example */}
+                    <div className="p-4 border border-muted rounded-md bg-muted/5">
+                      <div className="h-5 w-1/3 bg-primary/10 rounded-md animate-pulse mb-3"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-full"></div>
+                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-11/12"></div>
+                        <div className="ml-4 h-4 bg-muted/20 rounded-md animate-pulse w-10/12"></div>
+                        <div className="ml-4 h-4 bg-muted/20 rounded-md animate-pulse w-11/12"></div>
+                        <div className="ml-8 h-4 bg-muted/20 rounded-md animate-pulse w-9/12"></div>
+                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-1/2"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Returns Section */}
+                    <div className="space-y-3">
+                      <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/5"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-10/12"></div>
                     </div>
                   </div>
                 </GlassCard>
