@@ -93,7 +93,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         provider: 'google',
         options: {
           redirectTo,
+          queryParams: {
+            prompt: 'select_account',
+          },
         },
+       
       });
       return { error };
     } catch (error) {
