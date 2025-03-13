@@ -624,7 +624,7 @@ const VoiceCodeAssistant = () => {
                           className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                           <div 
-                            className={`max-w-[80%] rounded-lg p-4 ${
+                            className={`max-w-[95%] sm:max-w-[80%] rounded-lg p-4 ${
                               message.role === 'user' 
                                 ? 'bg-primary text-primary-foreground' 
                                 : 'bg-muted'
@@ -639,7 +639,7 @@ const VoiceCodeAssistant = () => {
                               </span>
                             </div>
                             
-                            <div className="formatted-message">
+                            <div className="formatted-message break-words">
                               {message.role === 'assistant' ? (
                                 <div>
                                   {message.content.split("```").map((part, i) => {
@@ -648,7 +648,7 @@ const VoiceCodeAssistant = () => {
                                         <div key={i} className="mb-2">
                                           {/* Replace markdown formatting with HTML */}
                                           {part.split('\n').map((line, j) => (
-                                            <p key={j}>{line}</p>
+                                            <p key={j} className="break-words">{line}</p>
                                           ))}
                                         </div>
                                       );
@@ -659,7 +659,7 @@ const VoiceCodeAssistant = () => {
                                   })}
                                 </div>
                               ) : (
-                                <p>{message.content}</p>
+                                <p className="break-words">{message.content}</p>
                               )}
                             </div>
                           </div>
@@ -692,15 +692,15 @@ const VoiceCodeAssistant = () => {
                conversation[conversation.length - 1].role === 'assistant' && 
                conversation[conversation.length - 1].codeSnippets && 
                conversation[conversation.length - 1].codeSnippets.length > 0 && (
-                <GlassCard className="p-6">
-                  <div className="flex justify-between items-center mb-4">
+                <GlassCard className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
                     <h3 className="text-lg font-semibold flex items-center gap-2">
                       <Code className="h-5 w-5" />
                       <span>Interactive Code Examples</span>
                     </h3>
                     
                     {conversation[conversation.length - 1].codeSnippets.length > 1 && (
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {conversation[conversation.length - 1].codeSnippets.map((snippet, index) => (
                           <Button 
                             key={index}
@@ -721,11 +721,11 @@ const VoiceCodeAssistant = () => {
                         key={index} 
                         className={activeCodeTab === `snippet-${index}` || (index === 0 && activeCodeTab === 'preview') ? 'block' : 'hidden'}
                       >
-                        <div className="flex justify-between items-center mb-2">
-                          <Badge variant="outline" className="capitalize">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-2">
+                          <Badge variant="outline" className="capitalize self-start">
                             {snippet.language}
                           </Badge>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -792,22 +792,24 @@ const VoiceCodeAssistant = () => {
                           codeTheme === 'dracula' ? 'bg-[#282a36]' :
                           'bg-[#f6f8fa]' // GitHub theme
                         }`}>
-                          <Editor
-                            value={snippet.code}
-                            onValueChange={() => {}}
-                            highlight={code => highlight(code, getLanguageHighlighter(snippet.language), snippet.language)}
-                            padding={16}
-                            style={{
-                              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                              fontSize: '14px',
-                              backgroundColor: 'transparent',
-                              color: codeTheme === 'light' || codeTheme === 'github' ? '#000000' : '#ffffff',
-                              minHeight: '200px',
-                              borderRadius: '0.375rem',
-                            }}
-                            className={`min-h-[200px] w-full ${codeTheme}-theme`}
-                            readOnly={true}
-                          />
+                          <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                            <Editor
+                              value={snippet.code}
+                              onValueChange={() => {}}
+                              highlight={code => highlight(code, getLanguageHighlighter(snippet.language), snippet.language)}
+                              padding={16}
+                              style={{
+                                fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                                fontSize: '14px',
+                                backgroundColor: 'transparent',
+                                color: codeTheme === 'light' || codeTheme === 'github' ? '#000000' : '#ffffff',
+                                minHeight: '200px',
+                                borderRadius: '0.375rem',
+                              }}
+                              className={`min-h-[200px] w-full ${codeTheme}-theme`}
+                              readOnly={true}
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -817,7 +819,7 @@ const VoiceCodeAssistant = () => {
               
               {/* Code Explanation Panel */}
               {showExplainPanel && (
-                <GlassCard className="p-6 mt-6 border-t-4 border-primary">
+                <GlassCard className="p-4 sm:p-6 mt-6 border-t-4 border-primary">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold flex items-center gap-2">
                       <Info className="h-5 w-5" />
@@ -832,26 +834,26 @@ const VoiceCodeAssistant = () => {
                     </Button>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-black/10 p-4 rounded-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-black/10 p-4 rounded-md overflow-x-auto">
                       <h4 className="text-sm font-semibold mb-2">Original Code</h4>
-                      <pre className="text-xs overflow-x-auto">
+                      <pre className="text-xs whitespace-pre-wrap break-all">
                         {currentExplainCode.split('\n').map((line, i) => (
                           <div key={i} className="flex">
-                            <span className="text-muted-foreground w-6 text-right pr-2">{i + 1}</span>
-                            <span>{line}</span>
+                            <span className="text-muted-foreground w-6 text-right pr-2 shrink-0">{i + 1}</span>
+                            <span className="break-words overflow-wrap-anywhere">{line}</span>
                           </div>
                         ))}
                       </pre>
                     </div>
                     
-                    <div className="bg-black/10 p-4 rounded-md">
+                    <div className="bg-black/10 p-4 rounded-md overflow-y-auto">
                       <h4 className="text-sm font-semibold mb-2">Explanation</h4>
                       <div className="text-xs space-y-2">
                         {currentExplainCode.split('\n').map((line, i) => (
                           <div key={i} className="pb-2 border-b border-border">
                             <p className="font-semibold text-primary">{`Line ${i + 1}:`}</p>
-                            <p>{line.trim() ? explainCodeLine(line, i) : "(Empty line)"}</p>
+                            <p className="break-words">{line.trim() ? explainCodeLine(line, i) : "(Empty line)"}</p>
                           </div>
                         ))}
                       </div>

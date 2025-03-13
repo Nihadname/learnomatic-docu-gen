@@ -251,7 +251,7 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
 
   return (
     <GlassCard className="p-0 overflow-hidden">
-      <div className="flex justify-between items-center p-4 bg-primary/5 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-4 bg-primary/5 border-b border-border gap-2">
         <h3 className="text-lg font-medium">AI Explanation</h3>
         <div className="flex items-center gap-2">
           <Button 
@@ -284,7 +284,7 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
         </div>
 
         <TabsContent value="sections" className="p-4 border-b border-border">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
             {sections.map((section) => (
               <Button 
                 key={section.id}
@@ -300,7 +300,7 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
           </div>
         </TabsContent>
 
-        <div className="p-6 overflow-auto max-h-[600px]" ref={contentRef}>
+        <div className="p-6 overflow-x-hidden">
           <ReactMarkdown
             components={{
               h1: ({ node, ...props }) => {
@@ -311,8 +311,8 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
                 return (
                   <div className="mb-4 group" id={id}>
                     <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleSection(id)}>
-                      <h1 className="text-2xl font-bold mt-6" {...props} />
-                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <h1 className="text-2xl font-bold mt-6 break-words" {...props} />
+                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                       </Button>
                     </div>
@@ -328,8 +328,8 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
                 return (
                   <div className="mb-3 group" id={id}>
                     <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleSection(id)}>
-                      <h2 className="text-xl font-bold mt-5" {...props} />
-                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <h2 className="text-xl font-bold mt-5 break-words" {...props} />
+                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                       </Button>
                     </div>
@@ -337,14 +337,14 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
                   </div>
                 )
               },
-              h3: ({ node, ...props }) => <h3 className="text-lg font-bold mt-4 mb-2" {...props} />,
+              h3: ({ node, ...props }) => <h3 className="text-lg font-bold mt-4 mb-2 break-words" {...props} />,
               p: ({ node, children, ...props }) => {
                 // Check if this paragraph is inside a collapsed section
                 const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
                 if (parentSection && collapsedSections[parentSection]) {
                   return null;
                 }
-                return <p className="my-3 leading-relaxed" {...props}>{children}</p>
+                return <p className="my-3 leading-relaxed break-words" {...props}>{children}</p>
               },
               ul: ({ node, children, ...props }) => {
                 // Check if this list is inside a collapsed section
@@ -362,9 +362,9 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
                 }
                 return <ol className="list-decimal pl-6 my-3" {...props}>{children}</ol>
               },
-              li: ({ node, ...props }) => <li className="my-1" {...props} />,
+              li: ({ node, ...props }) => <li className="my-1 break-words" {...props} />,
               a: ({ node, ...props }) => (
-                <a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props} />
+                <a className="text-primary hover:underline break-words" target="_blank" rel="noopener noreferrer" {...props} />
               ),
               blockquote: ({ node, children, ...props }) => {
                 const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
@@ -372,7 +372,7 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
                   return null;
                 }
                 return (
-                  <blockquote className="border-l-4 border-primary/50 pl-4 italic my-4 bg-primary/5 p-3 rounded-r-md" {...props}>
+                  <blockquote className="border-l-4 border-primary/50 pl-4 italic my-4 bg-primary/5 p-3 rounded-r-md break-words" {...props}>
                     {children}
                   </blockquote>
                 )
@@ -389,13 +389,13 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
                 
                 return !className ? (
                   <code
-                    className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono"
+                    className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono break-words"
                     {...props}
                   >
                     {children}
                   </code>
                 ) : (
-                  <div className="relative group">
+                  <div className="relative group overflow-x-auto">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -404,16 +404,18 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
                     >
                       <Copy size={14} />
                     </Button>
-                    <SyntaxHighlighter
-                      style={oneLight}
-                      language={match ? match[1] : ''}
-                      PreTag="div"
-                      className="rounded-md my-4 !bg-secondary/50"
-                      customStyle={{ padding: '1rem' }}
-                      {...props}
-                    >
-                      {code}
-                    </SyntaxHighlighter>
+                    <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+                      <SyntaxHighlighter
+                        style={oneLight}
+                        language={match ? match[1] : ''}
+                        PreTag="div"
+                        className="rounded-md my-4 !bg-secondary/50"
+                        customStyle={{ padding: '1rem' }}
+                        {...props}
+                      >
+                        {code}
+                      </SyntaxHighlighter>
+                    </div>
                   </div>
                 );
               },
