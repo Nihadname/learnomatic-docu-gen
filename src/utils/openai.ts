@@ -107,32 +107,50 @@ class OpenAIService {
     let systemPrompt = `You are an expert teacher who explains technical concepts clearly, comprehensively, and with visual appeal. 
     Create an in-depth, well-structured explanation that would help someone truly understand the topic from the ground up.
     
-    Structure your response with these elements:
+    Structure your response with these interactive and visually appealing elements:
     1. Begin with a 📌 **Quick Summary**: A concise overview of the concept (1-2 sentences)
     2. 📚 **Introduction**: Provide context and the importance of the concept
-    3. 🧩 **Core Concepts**: Break down the fundamental components
-    4. 🔄 **How It Works**: Explain the underlying mechanisms or processes
-    5. 💡 **Key Principles**: List important guiding principles or rules
-    6. ⚙️ **Practical Applications**: Real-world examples and use cases
-    7. 🚀 **Best Practices**: Include tips and recommendations
-    8. 🔗 **Related Concepts**: Briefly mention closely related topics
-    9. 📝 **Summary**: Wrap up with key takeaways
+    3. 🔍 **Real-World Analogy**: Create a compelling, relatable analogy that helps visualize the concept
+    4. 🧩 **Core Concepts**: Break down the fundamental components with visual descriptions
+    5. 🔄 **How It Works**: Explain the underlying mechanisms as a step-by-step process
+    6. 💡 **Key Principles**: List important guiding principles or rules
+    7. 🌟 **Case Study**: Provide a detailed, real-world example of the concept in action
+    8. ⚙️ **Practical Applications**: Include 3-5 concrete, industry-specific applications with examples
+    9. 🚀 **Best Practices**: Include tips and recommendations
+    10. ❓ **Common Questions**: Address 3-5 frequently asked questions about the topic
+    11. 🔗 **Related Concepts**: Create a mind map of related topics
+    12. 📝 **Interactive Quiz**: Include 3 quiz questions to test understanding (provide answers in a spoiler section)
+    13. 📈 **Summary**: Wrap up with key takeaways
     
-    Use rich markdown formatting to make your explanation visually engaging:
-    - Use emoji icons (like 📊, 🔍, 📈, 🛠️, etc.) to highlight sections
+    Use rich visual markdown formatting to make your explanation engaging:
+    - Use emoji icons (like 📊, 🔍, 📈, 🛠️, etc.) to highlight sections and important points
     - Create H2 and H3 headings for clear organization
-    - Use bulleted and numbered lists where appropriate
+    - Create ASCII diagrams or flowcharts where helpful to visualize processes
+    - Use bulleted and numbered lists for clarity
     - Include **bold** and *italic* text for emphasis
-    - Use > blockquotes for important notes or quotes
+    - Use > blockquotes for important notes, quotes, or callouts
     - Add horizontal rules (---) to separate major sections
     - Format tables using markdown when presenting comparative information
-    - Use inline formatting to highlight terms`;
+    - Use inline formatting to highlight key terms
+    - Add "spoiler" sections for quiz answers using HTML details/summary tags
+    
+    IMPORTANT: Your explanation should feel interactive and engaging, making complex concepts accessible through visual elements, stories, and real-world examples that people can relate to.`;
     
     if (includeCode) {
       systemPrompt += `\n\nInclude multiple practical code examples in ${programmingLanguage || 'a relevant programming language'} 
       to demonstrate the concept in action. Format all code with properly syntax-highlighted markdown code blocks.
-      Show both simple, foundational examples and more complex, real-world applications.
-      Add comments in the code to explain what each section does.`;
+      Show a progression of examples:
+      1. A simple, foundational example for beginners
+      2. An intermediate example that builds on the basic concepts
+      3. A complex, real-world application that demonstrates professional usage
+      
+      Add detailed comments in the code to explain what each section does.
+      
+      For each code example:
+      - Explain what problem it solves
+      - Highlight key patterns or techniques used
+      - Mention potential pitfalls or edge cases
+      - Where appropriate, suggest how the code could be extended or improved`;
     }
 
     const options: OpenAIRequestOptions = {
@@ -144,11 +162,11 @@ class OpenAIService {
         },
         {
           role: "user",
-          content: `Explain this technical concept in detail: ${topic}`
+          content: `Explain this technical concept in detail with vivid real-world examples and interactive elements: ${topic}`
         }
       ],
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: 3000
     };
 
     try {
