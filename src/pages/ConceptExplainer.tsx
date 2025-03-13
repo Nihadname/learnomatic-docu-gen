@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Brain, ChevronRight, Code, BookOpen, Bookmark, History, BookmarkPlus, ChevronDown, CheckCircle2, Search, Trash, Tag } from 'lucide-react';
+import { Brain, ChevronRight, Code, BookOpen, Bookmark, History, BookmarkPlus, ChevronDown, CheckCircle2, Search, Trash, Tag, Github } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
@@ -28,6 +28,7 @@ import {
 } from '@/utils/explanationStorage';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import PushToGitHub from '@/components/github/PushToGitHub';
 
 interface FormData {
   topic: string;
@@ -572,6 +573,16 @@ const ConceptExplainer = () => {
           
           <div className="lg:col-span-3">
             <AnimatedContainer animation="fade" delay={300}>
+              {explanation && (
+                <div className="mb-4 flex justify-end gap-2">
+                  {explanation && (
+                    <PushToGitHub 
+                      content={explanation} 
+                      title={currentTopic}
+                    />
+                  )}
+                </div>
+              )}
               <ExplanationResult content={explanation} isLoading={isLoading} />
               
               {!explanation && !isLoading && (
