@@ -1495,6 +1495,42 @@ Features:
                 </div>
               )}
               
+              {isLoading && (
+                <GlassCard className="p-8">
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="h-12 w-12 rounded-full border-4 border-t-transparent border-primary animate-spin"></div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="h-8 bg-muted/30 rounded-md animate-pulse"></div>
+                    
+                    <div className="space-y-2">
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-3/4"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-2/3"></div>
+                    </div>
+                    
+                    <div className="mt-6 space-y-2">
+                      <div className="h-6 bg-muted/30 rounded-md animate-pulse w-1/4"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-3/4"></div>
+                    </div>
+                    
+                    <div className="mt-6 space-y-2">
+                      <div className="h-6 bg-muted/30 rounded-md animate-pulse w-1/3"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-5/6"></div>
+                    </div>
+                    
+                    <div className="p-4 border border-muted rounded-md mt-6">
+                      <div className="h-20 bg-muted/20 rounded-md animate-pulse w-full"></div>
+                    </div>
+                  </div>
+                </GlassCard>
+              )}
+              
               {!documentation && !isLoading && (
                 <GlassCard className="p-8 flex flex-col items-center justify-center min-h-[400px] text-center">
                   <FileText size={48} className="text-muted-foreground mb-6 opacity-50" />
