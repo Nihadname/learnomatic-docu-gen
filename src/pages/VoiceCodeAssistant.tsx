@@ -61,11 +61,14 @@ const VoiceCodeAssistant = () => {
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>('default');
   const [speechRate, setSpeechRate] = useState<number>(0.9); // Slightly slower than default
+  const [textInput, setTextInput] = useState<string>('');
+  const [preventFeedback, setPreventFeedback] = useState<boolean>(true);
   
   // Refs
   const recognitionRef = useRef<any>(null);
   const synthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
   
   // Auth
   const { user, loading } = useAuth();
@@ -158,6 +161,9 @@ const VoiceCodeAssistant = () => {
     
     // Handle recognition results
     recognitionRef.current.onresult = (event: any) => {
+      // Skip processing if AI is currently speaking and preventFeedback is enabled
+      if (speaking && preventFeedback) return;
+      
       let interimTranscript = '';
       let finalTranscript = '';
       
@@ -196,7 +202,7 @@ const VoiceCodeAssistant = () => {
         recognitionRef.current.stop();
       }
     };
-  }, [recognitionSupported, listening]);
+  }, [recognitionSupported, listening, speaking, preventFeedback]);
   
   // Scroll to bottom of conversation when new messages are added
   useEffect(() => {
@@ -219,6 +225,13 @@ const VoiceCodeAssistant = () => {
       recognitionRef.current.start();
       setListening(true);
       setTranscription('');
+      
+      // Focus on text input when stopping voice
+      setTimeout(() => {
+        if (textInputRef.current) {
+          textInputRef.current.focus();
+        }
+      }, 300);
     }
   };
   
@@ -403,6 +416,11 @@ const VoiceCodeAssistant = () => {
   const speakText = (text: string) => {
     if (!speechSynthesisSupported || isMuted) return;
     
+    // If we're listening and want to prevent feedback, temporarily pause recognition
+    if (listening && preventFeedback) {
+      recognitionRef.current.stop();
+    }
+    
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
@@ -443,11 +461,29 @@ const VoiceCodeAssistant = () => {
     
     synthesisRef.current.onend = () => {
       setSpeaking(false);
+      
+      // Resume listening after a short delay to prevent feedback
+      if (listening && preventFeedback) {
+        setTimeout(() => {
+          if (listening) {
+            recognitionRef.current.start();
+          }
+        }, 500); // Half second delay before resuming listening
+      }
     };
     
     synthesisRef.current.onerror = (event) => {
       console.error('Speech synthesis error:', event);
       setSpeaking(false);
+      
+      // Resume listening in case of error too
+      if (listening && preventFeedback) {
+        setTimeout(() => {
+          if (listening) {
+            recognitionRef.current.start();
+          }
+        }, 500);
+      }
     };
     
     // Start speaking
@@ -473,6 +509,16 @@ const VoiceCodeAssistant = () => {
       case 'rust': return languages.rust;
       default: return languages.javascript;
     }
+  };
+  
+  // Handle submit for text input
+  const handleTextSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!textInput.trim()) return;
+    
+    handleUserInput(textInput);
+    setTextInput('');
   };
   
   // If loading or user not authenticated
@@ -515,50 +561,94 @@ const VoiceCodeAssistant = () => {
                 </h3>
                 
                 <div className="flex flex-col gap-4">
-                  <Button 
-                    size="lg"
-                    className={`relative w-full gap-2 ${listening ? 'bg-destructive hover:bg-destructive/90' : ''}`}
-                    onClick={toggleListening}
-                    disabled={!recognitionSupported || isProcessing}
-                  >
-                    {listening ? (
-                      <>
-                        <div className="absolute inset-0 bg-destructive/10 rounded-md animate-pulse"></div>
-                        <MicOff className="h-5 w-5" />
-                        <span>Stop Listening</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mic className="h-5 w-5" />
-                        <span>Start Listening</span>
-                      </>
-                    )}
-                  </Button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button 
+                      size="lg"
+                      className={`relative gap-2 ${listening ? 'bg-destructive hover:bg-destructive/90' : ''}`}
+                      onClick={toggleListening}
+                      disabled={!recognitionSupported || isProcessing}
+                    >
+                      {listening ? (
+                        <>
+                          <div className="absolute inset-0 bg-destructive/10 rounded-md animate-pulse"></div>
+                          <MicOff className="h-5 w-5" />
+                          <span>Stop</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="h-5 w-5" />
+                          <span>Start Listening</span>
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button 
+                      variant="outline"
+                      className="gap-2"
+                      onClick={toggleMute}
+                      disabled={!speechSynthesisSupported}
+                    >
+                      {isMuted ? (
+                        <>
+                          <Volume2 className="h-5 w-5" />
+                          <span>Enable Voice</span>
+                        </>
+                      ) : (
+                        <>
+                          <VolumeX className="h-5 w-5" />
+                          <span>Disable Voice</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
                   
-                  <Button 
-                    variant="outline"
-                    className="w-full gap-2"
-                    onClick={toggleMute}
-                    disabled={!speechSynthesisSupported}
-                  >
-                    {isMuted ? (
-                      <>
-                        <Volume2 className="h-5 w-5" />
-                        <span>Enable Voice Response</span>
-                      </>
-                    ) : (
-                      <>
-                        <VolumeX className="h-5 w-5" />
-                        <span>Disable Voice Response</span>
-                      </>
-                    )}
-                  </Button>
+                  {listening && (
+                    <div className="mt-4">
+                      <p className="text-sm font-medium mb-2">Voice Detected:</p>
+                      <div className="relative">
+                        <div className="h-6 rounded-full bg-primary/10 overflow-hidden flex items-center">
+                          <div className="bg-primary h-full" style={{ width: '60%' }}>
+                            <div className="absolute voice-wave top-0 left-0 w-full h-full">
+                              <span></span>
+                              <span></span>
+                              <span></span>
+                              <span></span>
+                              <span></span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs italic text-muted-foreground">
+                        {transcription || "Listening for your voice..."}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {!recognitionSupported && (
+                    <Alert variant="destructive" className="mt-4">
+                      <AlertDescription>
+                        Speech recognition is not supported in your browser. Try Chrome or Edge for full functionality.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   
                   {/* Voice Selection Controls */}
                   {!isMuted && speechSynthesisSupported && (
-                    <div className="mt-2 space-y-4">
+                    <div className="mt-4 space-y-4 border-t border-border pt-4">
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Voice Selection</label>
+                        <div className="flex justify-between mb-1">
+                          <label className="text-sm font-medium block">Voice Selection</label>
+                          
+                          <div className="flex items-center">
+                            <label className="text-xs mr-2">Prevent Feedback</label>
+                            <input
+                              type="checkbox"
+                              checked={preventFeedback}
+                              onChange={() => setPreventFeedback(!preventFeedback)}
+                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                          </div>
+                        </div>
                         <select 
                           className="w-full px-3 py-2 bg-background border border-input rounded-md"
                           value={selectedVoice}
@@ -592,39 +682,20 @@ const VoiceCodeAssistant = () => {
                           <span className="text-xs">Faster</span>
                         </div>
                       </div>
+                      
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setConversation([])}
+                          className="text-xs"
+                        >
+                          Clear Conversation
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
-                
-                {listening && (
-                  <div className="mt-4">
-                    <p className="text-sm font-medium mb-2">Voice Detected:</p>
-                    <div className="relative">
-                      <div className="h-6 rounded-full bg-primary/10 overflow-hidden flex items-center">
-                        <div className="bg-primary h-full" style={{ width: '60%' }}>
-                          <div className="absolute voice-wave top-0 left-0 w-full h-full">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-xs italic text-muted-foreground">
-                      {transcription || "Listening for your voice..."}
-                    </p>
-                  </div>
-                )}
-                
-                {!recognitionSupported && (
-                  <Alert variant="destructive" className="mt-4">
-                    <AlertDescription>
-                      Speech recognition is not supported in your browser. Try Chrome or Edge for full functionality.
-                    </AlertDescription>
-                  </Alert>
-                )}
               </GlassCard>
               
               <GlassCard className="p-6">
@@ -683,7 +754,7 @@ const VoiceCodeAssistant = () => {
                       <Terminal className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
                       <h3 className="text-lg font-medium mb-2">No conversation yet</h3>
                       <p className="text-muted-foreground max-w-md">
-                        Click "Start Listening" and ask a programming question to begin
+                        Type a message or click "Start Listening" and ask a programming question to begin
                       </p>
                     </div>
                   ) : (
@@ -739,6 +810,22 @@ const VoiceCodeAssistant = () => {
                     </div>
                   )}
                 </div>
+                
+                {/* Text Input Form */}
+                <form onSubmit={handleTextSubmit} className="flex items-center gap-2 p-3 bg-background border-t border-border">
+                  <input
+                    type="text"
+                    placeholder="Type your programming question here..."
+                    className="flex-1 bg-background px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    ref={textInputRef}
+                    disabled={isProcessing}
+                  />
+                  <Button type="submit" size="sm" disabled={isProcessing || !textInput.trim()}>
+                    Send
+                  </Button>
+                </form>
               </GlassCard>
               
               {/* Code Display Area */}
