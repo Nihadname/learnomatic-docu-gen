@@ -103,8 +103,17 @@
     overflow-x: hidden;
   }
 
+  /* Smooth theme transition */
+  html {
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
   .glass-card {
     @apply bg-white bg-opacity-70 backdrop-blur-lg border border-white border-opacity-20 shadow-lg;
+  }
+
+  .dark .glass-card {
+    @apply bg-gray-900 bg-opacity-70 border-gray-800;
   }
 
   .glass-button {

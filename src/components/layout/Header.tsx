@@ -12,9 +12,12 @@ import {
   X,
   UserCircle,
   LogOut,
-  Code
+  Code,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 
 const NavLink = ({ 
   to, 
@@ -46,6 +49,7 @@ const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { user, loading, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -80,7 +84,7 @@ const Header = () => {
       className={cn(
         'fixed top-0 left-0 right-0 z-50 py-4 transition-all duration-300',
         isScrolled 
-          ? 'bg-white/80 backdrop-blur-lg shadow-sm' 
+          ? 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg shadow-sm' 
           : 'bg-transparent'
       )}
     >
@@ -110,6 +114,21 @@ const Header = () => {
 
         {/* Authentication Buttons - Desktop */}
         <div className="hidden md:flex items-center space-x-2">
+          {/* Theme Toggle Button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full w-9 h-9" 
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? (
+              <Moon size={16} className="text-slate-700" />
+            ) : (
+              <Sun size={16} className="text-yellow-300" />
+            )}
+          </Button>
+
           {loading ? (
             <div className="h-5 w-5 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
           ) : user ? (
@@ -144,12 +163,29 @@ const Header = () => {
         </div>
 
         {/* Mobile Menu Button */}
-        <button
-          className="md:hidden text-foreground p-2 rounded-lg"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="md:hidden flex items-center gap-2">
+          {/* Mobile Theme Toggle */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full w-9 h-9" 
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? (
+              <Moon size={16} className="text-slate-700" />
+            ) : (
+              <Sun size={16} className="text-yellow-300" />
+            )}
+          </Button>
+          
+          <button
+            className="text-foreground p-2 rounded-lg"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}
