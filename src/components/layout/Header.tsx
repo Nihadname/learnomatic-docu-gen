@@ -12,7 +12,8 @@ import {
   X,
   UserCircle,
   LogOut,
-  Code
+  Code,
+  Mic
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -65,6 +66,7 @@ const Header = () => {
     { path: '/concept-explainer', label: 'AI Explainer', icon: <Brain size={18} /> },
     { path: '/documentation-generator', label: 'Doc Generator', icon: <FileText size={18} /> },
     { path: '/code-reviewer', label: 'Code Reviewer', icon: <Code size={18} /> },
+    { path: '/voice-assistant', label: 'Voice Assistant', icon: <Mic size={18} /> },
   ];
 
   const handleSignOut = async () => {
