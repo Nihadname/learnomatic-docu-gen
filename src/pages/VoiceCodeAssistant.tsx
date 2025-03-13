@@ -58,6 +58,9 @@ const VoiceCodeAssistant = () => {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [recognitionSupported, setRecognitionSupported] = useState<boolean>(true);
   const [speechSynthesisSupported, setSpeechSynthesisSupported] = useState<boolean>(true);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>('default');
+  const [speechRate, setSpeechRate] = useState<number>(0.9); // Slightly slower than default
   
   // Refs
   const recognitionRef = useRef<any>(null);
@@ -360,6 +363,42 @@ const VoiceCodeAssistant = () => {
     return speechText;
   };
   
+  // Get available voices when component mounts
+  useEffect(() => {
+    if (!speechSynthesisSupported) return;
+    
+    // Function to load voices
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        setAvailableVoices(voices);
+        
+        // Try to find a good default male voice
+        const maleVoice = voices.find(voice => 
+          (voice.name.includes('Male') || 
+           voice.name.includes('David') || 
+           voice.name.includes('Mark') || 
+           voice.name.includes('James') || 
+           voice.name.includes('John')) && 
+          voice.lang.includes('en')
+        );
+        
+        if (maleVoice) {
+          setSelectedVoice(maleVoice.name);
+        }
+      }
+    };
+    
+    // Chrome loads voices asynchronously
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    
+    // Initial load attempt
+    loadVoices();
+    
+  }, [speechSynthesisSupported]);
+  
   // Speak text using speech synthesis
   const speakText = (text: string) => {
     if (!speechSynthesisSupported || isMuted) return;
@@ -369,22 +408,32 @@ const VoiceCodeAssistant = () => {
     
     // Create utterance
     synthesisRef.current = new SpeechSynthesisUtterance(text);
-    synthesisRef.current.rate = 1.0;
+    synthesisRef.current.rate = speechRate;
     synthesisRef.current.pitch = 1.0;
     synthesisRef.current.lang = 'en-US';
     
     // Get voices
     const voices = window.speechSynthesis.getVoices();
     
-    // Try to find a natural sounding voice
-    const preferredVoice = voices.find(voice => 
-      voice.name.includes('Google') || 
-      voice.name.includes('Natural') || 
-      voice.name.includes('Premium')
-    );
-    
-    if (preferredVoice) {
-      synthesisRef.current.voice = preferredVoice;
+    // Select the currently chosen voice
+    if (selectedVoice !== 'default') {
+      const voice = voices.find(v => v.name === selectedVoice);
+      if (voice) {
+        synthesisRef.current.voice = voice;
+      } else {
+        // Fallback to a good male voice if selected voice not found
+        const maleVoice = voices.find(voice => 
+          (voice.name.includes('Male') || 
+           voice.name.includes('David') || 
+           voice.name.includes('Mark') || 
+           voice.name.includes('James')) && 
+          voice.lang.includes('en')
+        );
+        
+        if (maleVoice) {
+          synthesisRef.current.voice = maleVoice;
+        }
+      }
     }
     
     // Handle start, end and error events
@@ -504,6 +553,47 @@ const VoiceCodeAssistant = () => {
                       </>
                     )}
                   </Button>
+                  
+                  {/* Voice Selection Controls */}
+                  {!isMuted && speechSynthesisSupported && (
+                    <div className="mt-2 space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Voice Selection</label>
+                        <select 
+                          className="w-full px-3 py-2 bg-background border border-input rounded-md"
+                          value={selectedVoice}
+                          onChange={(e) => setSelectedVoice(e.target.value)}
+                        >
+                          <option value="default">Default Voice</option>
+                          {availableVoices
+                            .filter(voice => voice.lang.includes('en'))
+                            .map((voice, index) => (
+                              <option key={index} value={voice.name}>
+                                {voice.name} {voice.name.includes('Male') ? '(Male)' : voice.name.includes('Female') ? '(Female)' : ''}
+                              </option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Speech Rate</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">Slower</span>
+                          <input 
+                            type="range" 
+                            min="0.5" 
+                            max="1.2" 
+                            step="0.1" 
+                            value={speechRate}
+                            onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
+                            className="flex-1"
+                          />
+                          <span className="text-xs">Faster</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 {listening && (
