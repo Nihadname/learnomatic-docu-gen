@@ -12,12 +12,9 @@ import {
   X,
   UserCircle,
   LogOut,
-  Code,
-  Moon,
-  Sun
+  Code
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
 
 const NavLink = ({ 
   to, 
@@ -49,7 +46,6 @@ const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { user, loading, signOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -84,7 +80,7 @@ const Header = () => {
       className={cn(
         'fixed top-0 left-0 right-0 z-50 py-4 transition-all duration-300',
         isScrolled 
-          ? 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg shadow-sm' 
+          ? 'bg-white/80 backdrop-blur-lg shadow-sm' 
           : 'bg-transparent'
       )}
     >
@@ -114,21 +110,6 @@ const Header = () => {
 
         {/* Authentication Buttons - Desktop */}
         <div className="hidden md:flex items-center space-x-2">
-          {/* Theme Toggle Button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full w-9 h-9" 
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {theme === 'light' ? (
-              <Moon size={16} className="text-slate-700" />
-            ) : (
-              <Sun size={16} className="text-yellow-300" />
-            )}
-          </Button>
-
           {loading ? (
             <div className="h-5 w-5 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
           ) : user ? (
@@ -164,21 +145,6 @@ const Header = () => {
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center gap-2">
-          {/* Mobile Theme Toggle */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full w-9 h-9" 
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {theme === 'light' ? (
-              <Moon size={16} className="text-slate-700" />
-            ) : (
-              <Sun size={16} className="text-yellow-300" />
-            )}
-          </Button>
-          
           <button
             className="text-foreground p-2 rounded-lg"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -209,36 +175,30 @@ const Header = () => {
               </div>
             ) : user ? (
               <>
-                <Link 
-                  to="/profile" 
-                  className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg"
-                >
-                  <UserCircle size={18} />
-                  <span>Profile</span>
+                <Link to="/profile">
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                    <UserCircle size={16} />
+                    <span>Profile</span>
+                  </Button>
                 </Link>
-                <button 
-                  onClick={handleSignOut}
-                  className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg w-full text-left"
-                >
-                  <LogOut size={18} />
+                <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleSignOut}>
+                  <LogOut size={16} />
                   <span>Sign Out</span>
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <Link 
-                  to="/login" 
-                  className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg"
-                >
-                  <LogIn size={18} />
-                  <span>Log In</span>
+                <Link to="/login">
+                  <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+                    <LogIn size={16} />
+                    <span>Log In</span>
+                  </Button>
                 </Link>
-                <Link 
-                  to="/register" 
-                  className="flex items-center gap-2 px-4 py-2 text-foreground/80 hover:bg-primary/5 hover:text-primary rounded-lg"
-                >
-                  <UserPlus size={18} />
-                  <span>Sign Up</span>
+                <Link to="/register">
+                  <Button variant="outline" size="sm" className="w-full justify-start gap-2">
+                    <UserPlus size={16} />
+                    <span>Sign Up</span>
+                  </Button>
                 </Link>
               </>
             )}
