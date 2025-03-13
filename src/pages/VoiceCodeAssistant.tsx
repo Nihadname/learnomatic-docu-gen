@@ -55,18 +55,16 @@ const VoiceCodeAssistant = () => {
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [activeCodeTab, setActiveCodeTab] = useState<string>('preview');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('javascript');
-  const [isMuted, setIsMuted] = useState<boolean>(false);
   const [recognitionSupported, setRecognitionSupported] = useState<boolean>(true);
-  const [speechSynthesisSupported, setSpeechSynthesisSupported] = useState<boolean>(true);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<string>('default');
-  const [speechRate, setSpeechRate] = useState<number>(0.9); // Slightly slower than default
+  const [codeTheme, setCodeTheme] = useState<string>('dark');
   const [textInput, setTextInput] = useState<string>('');
-  const [preventFeedback, setPreventFeedback] = useState<boolean>(true);
+  const [showExplainPanel, setShowExplainPanel] = useState<boolean>(false);
+  const [currentExplainCode, setCurrentExplainCode] = useState<string>('');
+  const [codeExecutionResult, setCodeExecutionResult] = useState<string | null>(null);
+  const [isExecuting, setIsExecuting] = useState<boolean>(false);
   
   // Refs
   const recognitionRef = useRef<any>(null);
-  const synthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
   
@@ -134,11 +132,6 @@ const VoiceCodeAssistant = () => {
       setRecognitionSupported(false);
       toast.error('Speech recognition is not supported in your browser');
     }
-    
-    if (!window.speechSynthesis) {
-      setSpeechSynthesisSupported(false);
-      toast.error('Speech synthesis is not supported in your browser');
-    }
   }, []);
   
   // Check authentication
@@ -161,9 +154,6 @@ const VoiceCodeAssistant = () => {
     
     // Handle recognition results
     recognitionRef.current.onresult = (event: any) => {
-      // Skip processing if AI is currently speaking and preventFeedback is enabled
-      if (speaking && preventFeedback) return;
-      
       let interimTranscript = '';
       let finalTranscript = '';
       
@@ -178,7 +168,7 @@ const VoiceCodeAssistant = () => {
       
       if (finalTranscript) {
         setTranscription(finalTranscript);
-        handleUserInput(finalTranscript);
+        setTextInput(finalTranscript); // Auto-fill the text input with transcribed text
       }
     };
     
@@ -202,7 +192,7 @@ const VoiceCodeAssistant = () => {
         recognitionRef.current.stop();
       }
     };
-  }, [recognitionSupported, listening, speaking, preventFeedback]);
+  }, [recognitionSupported, listening]);
   
   // Scroll to bottom of conversation when new messages are added
   useEffect(() => {
@@ -210,6 +200,50 @@ const VoiceCodeAssistant = () => {
       conversationEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [conversation]);
+  
+  // Handle code execution simulation
+  const executeCode = (code: string, language: string) => {
+    setIsExecuting(true);
+    
+    // This is a simulation since actual code execution would require a backend
+    setTimeout(() => {
+      let result = '';
+      
+      // Simple simulation of code execution results based on language
+      if (language === 'javascript' || language === 'typescript') {
+        if (code.includes('console.log')) {
+          result = '> ' + code.match(/console\.log\(['"](.+)['"]\)/)?.[1] || 'Hello, world!';
+        } else if (code.includes('function')) {
+          result = '> Function defined successfully\n> Ready to use';
+        } else if (code.includes('class')) {
+          result = '> Class defined successfully\n> Ready to instantiate';
+        } else {
+          result = '> Code executed successfully';
+        }
+      } else if (language === 'python') {
+        if (code.includes('print')) {
+          result = '>>> ' + code.match(/print\(['"](.+)['"]\)/)?.[1] || 'Hello, world!';
+        } else if (code.includes('def ')) {
+          result = '>>> Function defined successfully\n>>> Ready to call';
+        } else if (code.includes('class ')) {
+          result = '>>> Class defined successfully\n>>> Ready to instantiate';
+        } else {
+          result = '>>> Code executed successfully';
+        }
+      } else {
+        result = '> Code execution simulated for ' + language;
+      }
+      
+      setCodeExecutionResult(result);
+      setIsExecuting(false);
+    }, 1000);
+  };
+  
+  // Open code explanation panel
+  const explainCode = (code: string) => {
+    setCurrentExplainCode(code);
+    setShowExplainPanel(true);
+  };
   
   // Toggle speech recognition
   const toggleListening = () => {
@@ -221,38 +255,17 @@ const VoiceCodeAssistant = () => {
     if (listening) {
       recognitionRef.current.stop();
       setListening(false);
+      // Submit the transcribed text automatically when stopping listening
+      if (transcription.trim()) {
+        handleUserInput(transcription.trim());
+        setTranscription('');
+        setTextInput('');
+      }
     } else {
+      setTextInput(''); // Clear the text input when starting to listen
       recognitionRef.current.start();
       setListening(true);
       setTranscription('');
-      
-      // Focus on text input when stopping voice
-      setTimeout(() => {
-        if (textInputRef.current) {
-          textInputRef.current.focus();
-        }
-      }, 300);
-    }
-  };
-  
-  // Toggle mute/unmute
-  const toggleMute = () => {
-    if (!speechSynthesisSupported) {
-      toast.error('Speech synthesis is not supported in your browser');
-      return;
-    }
-    
-    setIsMuted(!isMuted);
-    
-    if (isMuted) {
-      toast.success('Voice responses enabled');
-    } else {
-      // If currently speaking, stop
-      if (speaking) {
-        window.speechSynthesis.cancel();
-        setSpeaking(false);
-      }
-      toast.info('Voice responses disabled');
     }
   };
   
@@ -277,7 +290,9 @@ const VoiceCodeAssistant = () => {
       When providing code examples, make them clear, concise and practical.
       Format any code as markdown code blocks with the appropriate language tag.
       For example: \`\`\`javascript\nconsole.log("Hello world");\n\`\`\`
-      Keep responses focused, educational and practical for developers.`;
+      Keep responses focused, educational and practical for developers.
+      Include multiple code examples when appropriate.
+      Focus on providing comprehensive, executable code blocks.`;
       
       // Get API key
       await openAIService.ensureApiKey();
@@ -333,11 +348,6 @@ const VoiceCodeAssistant = () => {
       
       setConversation(prev => [...prev, assistantMessage]);
       
-      // Speak the response if not muted
-      if (!isMuted) {
-        speakText(prepareTextForSpeech(aiResponse));
-      }
-      
     } catch (error) {
       console.error('Error processing voice command:', error);
       toast.error('Error processing your request. Please try again.');
@@ -362,141 +372,6 @@ const VoiceCodeAssistant = () => {
     return snippets;
   };
   
-  // Prepare text for speech synthesis by removing code blocks and markdown
-  const prepareTextForSpeech = (text: string): string => {
-    // Remove code blocks
-    let speechText = text.replace(/```[\s\S]*?```/g, 'I have included a code snippet in the display.');
-    
-    // Remove markdown formatting
-    speechText = speechText.replace(/\*\*(.*?)\*\*/g, '$1'); // Bold
-    speechText = speechText.replace(/\*(.*?)\*/g, '$1');     // Italic
-    speechText = speechText.replace(/\[(.*?)\]\(.*?\)/g, '$1'); // Links
-    speechText = speechText.replace(/#{1,6}\s?(.*)/g, '$1'); // Headers
-    
-    return speechText;
-  };
-  
-  // Get available voices when component mounts
-  useEffect(() => {
-    if (!speechSynthesisSupported) return;
-    
-    // Function to load voices
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        setAvailableVoices(voices);
-        
-        // Try to find a good default male voice
-        const maleVoice = voices.find(voice => 
-          (voice.name.includes('Male') || 
-           voice.name.includes('David') || 
-           voice.name.includes('Mark') || 
-           voice.name.includes('James') || 
-           voice.name.includes('John')) && 
-          voice.lang.includes('en')
-        );
-        
-        if (maleVoice) {
-          setSelectedVoice(maleVoice.name);
-        }
-      }
-    };
-    
-    // Chrome loads voices asynchronously
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-    
-    // Initial load attempt
-    loadVoices();
-    
-  }, [speechSynthesisSupported]);
-  
-  // Speak text using speech synthesis
-  const speakText = (text: string) => {
-    if (!speechSynthesisSupported || isMuted) return;
-    
-    // If we're listening and want to prevent feedback, temporarily pause recognition
-    if (listening && preventFeedback) {
-      recognitionRef.current.stop();
-    }
-    
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
-    
-    // Create utterance
-    synthesisRef.current = new SpeechSynthesisUtterance(text);
-    synthesisRef.current.rate = speechRate;
-    synthesisRef.current.pitch = 1.0;
-    synthesisRef.current.lang = 'en-US';
-    
-    // Get voices
-    const voices = window.speechSynthesis.getVoices();
-    
-    // Select the currently chosen voice
-    if (selectedVoice !== 'default') {
-      const voice = voices.find(v => v.name === selectedVoice);
-      if (voice) {
-        synthesisRef.current.voice = voice;
-      } else {
-        // Fallback to a good male voice if selected voice not found
-        const maleVoice = voices.find(voice => 
-          (voice.name.includes('Male') || 
-           voice.name.includes('David') || 
-           voice.name.includes('Mark') || 
-           voice.name.includes('James')) && 
-          voice.lang.includes('en')
-        );
-        
-        if (maleVoice) {
-          synthesisRef.current.voice = maleVoice;
-        }
-      }
-    }
-    
-    // Handle start, end and error events
-    synthesisRef.current.onstart = () => {
-      setSpeaking(true);
-    };
-    
-    synthesisRef.current.onend = () => {
-      setSpeaking(false);
-      
-      // Resume listening after a short delay to prevent feedback
-      if (listening && preventFeedback) {
-        setTimeout(() => {
-          if (listening) {
-            recognitionRef.current.start();
-          }
-        }, 500); // Half second delay before resuming listening
-      }
-    };
-    
-    synthesisRef.current.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
-      setSpeaking(false);
-      
-      // Resume listening in case of error too
-      if (listening && preventFeedback) {
-        setTimeout(() => {
-          if (listening) {
-            recognitionRef.current.start();
-          }
-        }, 500);
-      }
-    };
-    
-    // Start speaking
-    window.speechSynthesis.speak(synthesisRef.current);
-  };
-  
-  // Copy code to clipboard
-  const copyCodeToClipboard = (code: string) => {
-    navigator.clipboard.writeText(code)
-      .then(() => toast.success('Code copied to clipboard'))
-      .catch(() => toast.error('Failed to copy code'));
-  };
-  
   // Get language highlighter for code editor
   const getLanguageHighlighter = (lang: string) => {
     switch (lang) {
@@ -519,6 +394,14 @@ const VoiceCodeAssistant = () => {
     
     handleUserInput(textInput);
     setTextInput('');
+    setTranscription(''); // Also clear transcription if there was any
+  };
+  
+  // Copy code to clipboard
+  const copyCodeToClipboard = (code: string) => {
+    navigator.clipboard.writeText(code)
+      .then(() => toast.success('Code copied to clipboard'))
+      .catch(() => toast.error('Failed to copy code'));
   };
   
   // If loading or user not authenticated
@@ -542,11 +425,11 @@ const VoiceCodeAssistant = () => {
         <AnimatedContainer animation="fade" className="mb-8 text-center">
           <h1 className="text-3xl md:text-4xl font-bold mb-4 flex items-center justify-center gap-3">
             <Sparkles className="text-primary h-8 w-8" />
-            Voice Code Assistant
+            Code Assistant
             <Sparkles className="text-primary h-8 w-8" />
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Your hands-free AI programming assistant. Ask coding questions using your voice and receive spoken explanations with code examples.
+            Your AI programming assistant. Ask coding questions and receive interactive code examples with explanations.
           </p>
         </AnimatedContainer>
         
@@ -557,50 +440,29 @@ const VoiceCodeAssistant = () => {
               <GlassCard className="p-6 mb-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Terminal className="h-5 w-5" />
-                  <span>Voice Controls</span>
+                  <span>Voice Input</span>
                 </h3>
                 
                 <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button 
-                      size="lg"
-                      className={`relative gap-2 ${listening ? 'bg-destructive hover:bg-destructive/90' : ''}`}
-                      onClick={toggleListening}
-                      disabled={!recognitionSupported || isProcessing}
-                    >
-                      {listening ? (
-                        <>
-                          <div className="absolute inset-0 bg-destructive/10 rounded-md animate-pulse"></div>
-                          <MicOff className="h-5 w-5" />
-                          <span>Stop</span>
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="h-5 w-5" />
-                          <span>Start Listening</span>
-                        </>
-                      )}
-                    </Button>
-                    
-                    <Button 
-                      variant="outline"
-                      className="gap-2"
-                      onClick={toggleMute}
-                      disabled={!speechSynthesisSupported}
-                    >
-                      {isMuted ? (
-                        <>
-                          <Volume2 className="h-5 w-5" />
-                          <span>Enable Voice</span>
-                        </>
-                      ) : (
-                        <>
-                          <VolumeX className="h-5 w-5" />
-                          <span>Disable Voice</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <Button 
+                    size="lg"
+                    className={`relative w-full gap-2 ${listening ? 'bg-destructive hover:bg-destructive/90' : ''}`}
+                    onClick={toggleListening}
+                    disabled={!recognitionSupported || isProcessing}
+                  >
+                    {listening ? (
+                      <>
+                        <div className="absolute inset-0 bg-destructive/10 rounded-md animate-pulse"></div>
+                        <MicOff className="h-5 w-5" />
+                        <span>Stop Recording & Send</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-5 w-5" />
+                        <span>Start Voice Recording</span>
+                      </>
+                    )}
+                  </Button>
                   
                   {listening && (
                     <div className="mt-4">
@@ -632,69 +494,46 @@ const VoiceCodeAssistant = () => {
                     </Alert>
                   )}
                   
-                  {/* Voice Selection Controls */}
-                  {!isMuted && speechSynthesisSupported && (
-                    <div className="mt-4 space-y-4 border-t border-border pt-4">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <label className="text-sm font-medium block">Voice Selection</label>
-                          
-                          <div className="flex items-center">
-                            <label className="text-xs mr-2">Prevent Feedback</label>
-                            <input
-                              type="checkbox"
-                              checked={preventFeedback}
-                              onChange={() => setPreventFeedback(!preventFeedback)}
-                              className="rounded border-gray-300 text-primary focus:ring-primary"
-                            />
-                          </div>
-                        </div>
-                        <select 
-                          className="w-full px-3 py-2 bg-background border border-input rounded-md"
-                          value={selectedVoice}
-                          onChange={(e) => setSelectedVoice(e.target.value)}
-                        >
-                          <option value="default">Default Voice</option>
-                          {availableVoices
-                            .filter(voice => voice.lang.includes('en'))
-                            .map((voice, index) => (
-                              <option key={index} value={voice.name}>
-                                {voice.name} {voice.name.includes('Male') ? '(Male)' : voice.name.includes('Female') ? '(Female)' : ''}
-                              </option>
-                            ))
-                          }
-                        </select>
+                  {/* Code Settings */}
+                  <div className="mt-4 space-y-4 border-t border-border pt-4">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <label className="text-sm font-medium block">Code Theme</label>
                       </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">Speech Rate</label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs">Slower</span>
-                          <input 
-                            type="range" 
-                            min="0.5" 
-                            max="1.2" 
-                            step="0.1" 
-                            value={speechRate}
-                            onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-                            className="flex-1"
-                          />
-                          <span className="text-xs">Faster</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConversation([])}
-                          className="text-xs"
-                        >
-                          Clear Conversation
-                        </Button>
-                      </div>
+                      <select 
+                        className="w-full px-3 py-2 bg-background border border-input rounded-md"
+                        value={codeTheme}
+                        onChange={(e) => setCodeTheme(e.target.value)}
+                      >
+                        <option value="dark">Dark (Default)</option>
+                        <option value="light">Light</option>
+                        <option value="synthwave">Synthwave</option>
+                        <option value="dracula">Dracula</option>
+                        <option value="github">GitHub</option>
+                      </select>
                     </div>
-                  )}
+                    
+                    <div className="flex justify-between">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConversation([])}
+                        className="text-xs"
+                      >
+                        Clear Conversation
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCodeExecutionResult(null)}
+                        className="text-xs"
+                        disabled={!codeExecutionResult}
+                      >
+                        Clear Results
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </GlassCard>
               
@@ -706,7 +545,7 @@ const VoiceCodeAssistant = () => {
                 
                 <div className="space-y-4 text-sm">
                   <div className="pb-2 border-b border-border">
-                    <h4 className="font-medium mb-1">Example Voice Commands:</h4>
+                    <h4 className="font-medium mb-1">Example Commands:</h4>
                     <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
                       <li>"Explain async/await in JavaScript"</li>
                       <li>"How do I implement a binary search tree in Python?"</li>
@@ -717,13 +556,13 @@ const VoiceCodeAssistant = () => {
                   </div>
                   
                   <div className="pb-2 border-b border-border">
-                    <h4 className="font-medium mb-1">Tips:</h4>
+                    <h4 className="font-medium mb-1">Code Features:</h4>
                     <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
-                      <li>Speak clearly and concisely</li>
-                      <li>Be specific about programming languages</li>
-                      <li>Code samples are automatically formatted</li>
-                      <li>Click code blocks to copy them</li>
-                      <li>You can start/stop voice recognition anytime</li>
+                      <li>Click "Run Code" to see a simulation</li>
+                      <li>Use "Explain" to get code breakdowns</li>
+                      <li>Copy code with one click</li>
+                      <li>Multiple examples available for complex topics</li>
+                      <li>Change theme to customize code appearance</li>
                     </ul>
                   </div>
                   
@@ -741,6 +580,26 @@ const VoiceCodeAssistant = () => {
                   </div>
                 </div>
               </GlassCard>
+              
+              {/* Code Execution Results */}
+              {codeExecutionResult && (
+                <AnimatedContainer animation="scale" className="mt-6">
+                  <GlassCard className="p-6 border-2 border-green-500/30">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-green-500">
+                      <Play className="h-5 w-5" />
+                      <span>Execution Results</span>
+                    </h3>
+                    <div className="bg-black text-green-400 font-mono text-sm p-4 rounded-md">
+                      {codeExecutionResult.split('\n').map((line, i) => (
+                        <div key={i} className="flex">
+                          <span className="opacity-50 mr-2">{i + 1}</span>
+                          <span>{line}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </GlassCard>
+                </AnimatedContainer>
+              )}
             </AnimatedContainer>
           </div>
           
@@ -754,7 +613,7 @@ const VoiceCodeAssistant = () => {
                       <Terminal className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
                       <h3 className="text-lg font-medium mb-2">No conversation yet</h3>
                       <p className="text-muted-foreground max-w-md">
-                        Type a message or click "Start Listening" and ask a programming question to begin
+                        Type a message or use voice recording to ask a programming question
                       </p>
                     </div>
                   ) : (
@@ -820,7 +679,7 @@ const VoiceCodeAssistant = () => {
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
                     ref={textInputRef}
-                    disabled={isProcessing}
+                    disabled={isProcessing || listening}
                   />
                   <Button type="submit" size="sm" disabled={isProcessing || !textInput.trim()}>
                     Send
@@ -837,7 +696,7 @@ const VoiceCodeAssistant = () => {
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold flex items-center gap-2">
                       <Code className="h-5 w-5" />
-                      <span>Generated Code</span>
+                      <span>Interactive Code Examples</span>
                     </h3>
                     
                     {conversation[conversation.length - 1].codeSnippets.length > 1 && (
@@ -866,25 +725,73 @@ const VoiceCodeAssistant = () => {
                           <Badge variant="outline" className="capitalize">
                             {snippet.language}
                           </Badge>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost"
-                                  onClick={() => copyCodeToClipboard(snippet.code)}
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Copy code</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <div className="flex items-center gap-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => executeCode(snippet.code, snippet.language)}
+                                    disabled={isExecuting}
+                                  >
+                                    {isExecuting ? 
+                                      <Loader2 className="h-4 w-4 animate-spin" /> : 
+                                      <Play className="h-4 w-4" />
+                                    }
+                                    <span className="ml-1">Run Code</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Execute code simulation</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => explainCode(snippet.code)}
+                                  >
+                                    <Info className="h-4 w-4" />
+                                    <span className="ml-1">Explain</span>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Get line-by-line explanation</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost"
+                                    onClick={() => copyCodeToClipboard(snippet.code)}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Copy code</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
                         </div>
                         
-                        <div className="border border-input rounded-md overflow-hidden bg-black">
+                        <div className={`border border-input rounded-md overflow-hidden ${
+                          codeTheme === 'dark' ? 'bg-black' : 
+                          codeTheme === 'light' ? 'bg-white' :
+                          codeTheme === 'synthwave' ? 'bg-[#2b213a]' :
+                          codeTheme === 'dracula' ? 'bg-[#282a36]' :
+                          'bg-[#f6f8fa]' // GitHub theme
+                        }`}>
                           <Editor
                             value={snippet.code}
                             onValueChange={() => {}}
@@ -893,12 +800,12 @@ const VoiceCodeAssistant = () => {
                             style={{
                               fontFamily: '"JetBrains Mono", "Fira Code", monospace',
                               fontSize: '14px',
-                              backgroundColor: 'black',
-                              color: '#ffffff',
+                              backgroundColor: 'transparent',
+                              color: codeTheme === 'light' || codeTheme === 'github' ? '#000000' : '#ffffff',
                               minHeight: '200px',
                               borderRadius: '0.375rem',
                             }}
-                            className="min-h-[200px] w-full vibrant-code-editor"
+                            className={`min-h-[200px] w-full ${codeTheme}-theme`}
                             readOnly={true}
                           />
                         </div>
@@ -908,25 +815,57 @@ const VoiceCodeAssistant = () => {
                 </GlassCard>
               )}
               
+              {/* Code Explanation Panel */}
+              {showExplainPanel && (
+                <GlassCard className="p-6 mt-6 border-t-4 border-primary">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Info className="h-5 w-5" />
+                      <span>Code Explanation</span>
+                    </h3>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setShowExplainPanel(false)}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-black/10 p-4 rounded-md">
+                      <h4 className="text-sm font-semibold mb-2">Original Code</h4>
+                      <pre className="text-xs overflow-x-auto">
+                        {currentExplainCode.split('\n').map((line, i) => (
+                          <div key={i} className="flex">
+                            <span className="text-muted-foreground w-6 text-right pr-2">{i + 1}</span>
+                            <span>{line}</span>
+                          </div>
+                        ))}
+                      </pre>
+                    </div>
+                    
+                    <div className="bg-black/10 p-4 rounded-md">
+                      <h4 className="text-sm font-semibold mb-2">Explanation</h4>
+                      <div className="text-xs space-y-2">
+                        {currentExplainCode.split('\n').map((line, i) => (
+                          <div key={i} className="pb-2 border-b border-border">
+                            <p className="font-semibold text-primary">{`Line ${i + 1}:`}</p>
+                            <p>{line.trim() ? explainCodeLine(line, i) : "(Empty line)"}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </GlassCard>
+              )}
+              
               {/* Loading state */}
               {isProcessing && (
                 <GlassCard className="p-6 flex items-center">
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3">
-                      <div className="h-6 w-6 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
-                      <span className="font-medium">Processing your request...</span>
-                    </div>
-                    
-                    {speaking && (
-                      <div className="flex items-center gap-2">
-                        <div className="voice-wave h-5">
-                          <span></span>
-                          <span></span>
-                          <span></span>
-                        </div>
-                        <span className="text-sm">Speaking</span>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <div className="h-6 w-6 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
+                    <span className="font-medium">Processing your request...</span>
                   </div>
                 </GlassCard>
               )}
@@ -942,6 +881,47 @@ const VoiceCodeAssistant = () => {
       </footer>
     </div>
   );
+};
+
+// Simple function to generate explanations for code lines
+const explainCodeLine = (line: string, lineNumber: number): string => {
+  if (line.trim() === '') return "This is an empty line used for spacing and readability.";
+  
+  if (line.includes('import ') || line.includes('from ')) 
+    return "This line imports necessary modules or components needed for the code to work.";
+    
+  if (line.includes('function ') || line.includes('const ') || line.includes('let ') || line.includes('var ')) 
+    return "This declares a variable or function that will be used in the program.";
+    
+  if (line.includes('class ')) 
+    return "This defines a class, which is a blueprint for creating objects with specific properties and methods.";
+    
+  if (line.includes('if ') || line.includes('else ')) 
+    return "This is a conditional statement that controls the flow of execution based on certain conditions.";
+    
+  if (line.includes('for ') || line.includes('while ')) 
+    return "This is a loop that repeats a block of code multiple times.";
+    
+  if (line.includes('return ')) 
+    return "This returns a value from a function back to where it was called.";
+    
+  if (line.includes('try ') || line.includes('catch ') || line.includes('finally ')) 
+    return "This is error handling code that gracefully manages exceptions that might occur.";
+    
+  if (line.trim().startsWith('//') || line.trim().startsWith('#')) 
+    return "This is a comment that explains the code but doesn't affect execution.";
+    
+  if (line.includes('=')) 
+    return "This assigns a value to a variable or property.";
+    
+  if (line.includes('.')) 
+    return "This accesses a property or method of an object.";
+    
+  if (line.includes('(') && line.includes(')')) 
+    return "This is calling a function or method with the given parameters.";
+    
+  // Default explanation
+  return "This is code that contributes to the program's functionality.";
 };
 
 export default VoiceCodeAssistant; 

@@ -278,7 +278,7 @@ function calculateTotalPrice(items, discount = 0, taxRate = 0.1, options = {}) {
   if (!Array.isArray(items)) {
     throw new Error('Items must be an array');
   }
-
+  
   // Validate each item has required properties
   items.forEach((item, index) => {
     if (!item.price || typeof item.price !== 'number') {
@@ -515,8 +515,8 @@ public class UserManager {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new DuplicateUserException("Username already taken");
         }
-    }
-    
+        }
+        
     private void checkEmailAvailability(String email) throws DuplicateUserException {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new DuplicateUserException("Email already registered");
@@ -1252,75 +1252,75 @@ Features:
           <div className="lg:col-span-2">
             <AnimatedContainer animation="fade" delay={100}>
               <GlassCard className="p-6">
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  <div>
-                    <Label>Documentation Type</Label>
-                    <RadioGroup 
-                      defaultValue="function" 
-                      className="grid grid-cols-3 gap-4 mt-1"
-                      onValueChange={(value) => setValue('docType', value as 'function' | 'class' | 'readme')}
-                    >
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                       <div>
+                        <Label>Documentation Type</Label>
+                        <RadioGroup 
+                          defaultValue="function" 
+                          className="grid grid-cols-3 gap-4 mt-1"
+                          onValueChange={(value) => setValue('docType', value as 'function' | 'class' | 'readme')}
+                        >
+                          <div>
                         <RadioGroupItem value="function" id="function" className="peer sr-only" />
-                        <Label
-                          htmlFor="function"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <Code className="mb-2 h-5 w-5" />
+                            <Label
+                              htmlFor="function"
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                              <Code className="mb-2 h-5 w-5" />
                           <span>Function</span>
-                        </Label>
-                      </div>
-                      <div>
+                            </Label>
+                          </div>
+                          <div>
                         <RadioGroupItem value="class" id="class" className="peer sr-only" />
-                        <Label
-                          htmlFor="class"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <FileText className="mb-2 h-5 w-5" />
+                            <Label
+                              htmlFor="class"
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                              <FileText className="mb-2 h-5 w-5" />
                           <span>Class</span>
-                        </Label>
-                      </div>
-                      <div>
+                            </Label>
+                          </div>
+                          <div>
                         <RadioGroupItem value="readme" id="readme" className="peer sr-only" />
-                        <Label
-                          htmlFor="readme"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <FileText className="mb-2 h-5 w-5" />
+                            <Label
+                              htmlFor="readme"
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                              <FileText className="mb-2 h-5 w-5" />
                           <span>README</span>
-                        </Label>
+                            </Label>
+                          </div>
+                        </RadioGroup>
                       </div>
-                    </RadioGroup>
-                  </div>
-                  
-                  {docType !== 'readme' && (
-                    <div>
-                      <Label htmlFor="language">Programming Language</Label>
-                      <Select
-                        defaultValue="javascript"
-                        onValueChange={(value) => setValue('language', value)}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select language" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="javascript">JavaScript</SelectItem>
-                          <SelectItem value="typescript">TypeScript</SelectItem>
-                          <SelectItem value="python">Python</SelectItem>
-                          <SelectItem value="java">Java</SelectItem>
-                          <SelectItem value="csharp">C#</SelectItem>
-                          <SelectItem value="go">Go</SelectItem>
-                          <SelectItem value="rust">Rust</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  
-                  <div>
+                      
+                      {docType !== 'readme' && (
+                        <div>
+                          <Label htmlFor="language">Programming Language</Label>
+                          <Select
+                            defaultValue="javascript"
+                            onValueChange={(value) => setValue('language', value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select language" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="javascript">JavaScript</SelectItem>
+                              <SelectItem value="typescript">TypeScript</SelectItem>
+                              <SelectItem value="python">Python</SelectItem>
+                              <SelectItem value="java">Java</SelectItem>
+                              <SelectItem value="csharp">C#</SelectItem>
+                              <SelectItem value="go">Go</SelectItem>
+                              <SelectItem value="rust">Rust</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      
+                      <div>
                     <div className="flex justify-between items-center mb-1">
-                      <Label htmlFor="codeSnippet">
-                        {docType === 'readme' ? 'Project Description' : 'Code Snippet'}
-                      </Label>
+                        <Label htmlFor="codeSnippet">
+                          {docType === 'readme' ? 'Project Description' : 'Code Snippet'}
+                        </Label>
                       <Button 
                         type="button" 
                         size="sm" 
@@ -1396,30 +1396,30 @@ Features:
                         </div>
                       )}
                     </div>
-                    {errors.codeSnippet && (
-                      <p className="text-destructive text-sm mt-1">{errors.codeSnippet.message}</p>
-                    )}
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full gap-2"
+                        {errors.codeSnippet && (
+                          <p className="text-destructive text-sm mt-1">{errors.codeSnippet.message}</p>
+                        )}
+                      </div>
+                      
+                      <Button 
+                        type="submit" 
+                        className="w-full gap-2"
                     disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary-foreground animate-spin"></div>
+                      >
+                        {isLoading ? (
+                          <>
+                            <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary-foreground animate-spin"></div>
                         <span>{apiKeyLoading ? 'Preparing API Key...' : 'Generating...'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <FileText size={16} />
-                        <span>Generate Documentation</span>
-                        <ChevronRight size={16} />
-                      </>
-                    )}
-                  </Button>
-                </form>
+                          </>
+                        ) : (
+                          <>
+                            <FileText size={16} />
+                            <span>Generate Documentation</span>
+                            <ChevronRight size={16} />
+                          </>
+                        )}
+                      </Button>
+                    </form>
               </GlassCard>
             </AnimatedContainer>
             
@@ -1490,7 +1490,7 @@ Features:
                     </Button>
                   </div>
                   <div ref={documentationRef}>
-                    <ExplanationResult content={documentation} isLoading={isLoading} />
+              <ExplanationResult content={documentation} isLoading={isLoading} />
                   </div>
                 </div>
               )}
