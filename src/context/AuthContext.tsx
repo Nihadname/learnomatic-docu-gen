@@ -88,29 +88,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const redirectTo = window.location.origin;
       
-      // Check if user is on iOS (iPhone, iPad, iPod)
+      // Check if user is on iOS (iPhone, iPad, iPod) or using problematic browsers
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       
-      // Check if likely in a WebView or embedded browser
+      // Check if likely in a WebView or embedded browser (including Telegram)
       const isWebView = 
         // iOS WebView detection
         /(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(navigator.userAgent) ||
         // Android WebView detection
-        /wv|WebView|Linktree/.test(navigator.userAgent) ||
-        // General WebView/embedded browsers checks
-        (/Twitter|FB|facebook|Instagram|Linktree/i.test(navigator.userAgent) || 
+        /wv|WebView/.test(navigator.userAgent) ||
+        // Specific apps detection (including Telegram)
+        /Telegram|TelegramBot|Twitter|FB|facebook|Instagram|Linktree|Instagram|Line|KAKAOTALK|NAVER/i.test(navigator.userAgent) || 
         document.referrer.includes('t.co') || 
         document.referrer.includes('instagram') ||
-        document.referrer.includes('linktree'));
+        document.referrer.includes('linktree') ||
+        document.referrer.includes('telegram');
       
-      // Direct method for problematic user agents
+      // For problematic browsers, try to open in the device's native browser
       if (isIOS || isWebView) {
-        // Use direct browser redirect for iOS or WebView
+        // Generate URL but tell the user to open in external browser
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo,
-            skipBrowserRedirect: false, // Let the browser redirect automatically
+            skipBrowserRedirect: true, // Don't auto-redirect, get URL instead
             queryParams: {
               access_type: 'offline',
               prompt: 'consent',
@@ -118,7 +119,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         });
         
-        return { error, directBrowserRedirect: true };
+        if (data?.url) {
+          // Try to open in native browser using _system target
+          window.open(data.url, '_system');
+          return { error: null, directBrowserRedirect: true };
+        } else {
+          return { error: new Error('Failed to generate authentication URL') };
+        }
       } else {
         // For desktop and normal mobile browsers, use our new tab approach
         const { data, error } = await supabase.auth.signInWithOAuth({

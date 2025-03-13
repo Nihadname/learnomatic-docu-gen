@@ -93,10 +93,14 @@ const Login = () => {
       
       if (error) {
         toast.error(error.message || 'Failed to login with Google');
+        setIsGoogleLoading(false);
       } else if (directBrowserRedirect) {
-        // For iOS and embedded browsers, we're letting the browser redirect directly
-        toast.info('Redirecting to Google authentication...');
-        // Don't set isGoogleLoading to false here since we're leaving the page
+        // For embedded browsers like Telegram
+        toast.info(
+          'Google login doesn\'t work directly in this app. We\'re trying to open your browser. If nothing happens, please copy the URL and open it in Chrome or Safari.',
+          { duration: 8000 }
+        );
+        setTimeout(() => setIsGoogleLoading(false), 2000);
       } else {
         // For desktop and normal mobile browsers, we've opened a new tab
         toast.info('Google sign-in opened in a new tab. Please complete the authentication there.');
