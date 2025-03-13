@@ -82,6 +82,37 @@ const CodeReviewer = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   
+  // Custom styling for syntax highlighting in the fixed code section
+  useEffect(() => {
+    // Create a style element
+    const styleEl = document.createElement('style');
+    // Define vibrant syntax highlighting colors
+    styleEl.innerHTML = `
+      .vibrant-code-editor .token.comment { color: #6a9955; }
+      .vibrant-code-editor .token.string { color: #ce9178; }
+      .vibrant-code-editor .token.number { color: #b5cea8; }
+      .vibrant-code-editor .token.boolean { color: #569cd6; }
+      .vibrant-code-editor .token.keyword { color: #c586c0; font-weight: bold; }
+      .vibrant-code-editor .token.function { color: #dcdcaa; }
+      .vibrant-code-editor .token.operator { color: #d4d4d4; }
+      .vibrant-code-editor .token.variable { color: #9cdcfe; }
+      .vibrant-code-editor .token.class-name { color: #4ec9b0; }
+      .vibrant-code-editor .token.property { color: #9cdcfe; }
+      .vibrant-code-editor .token.punctuation { color: #d4d4d4; }
+      .vibrant-code-editor .token.tag { color: #569cd6; }
+      .vibrant-code-editor .token.attr-name { color: #9cdcfe; }
+      .vibrant-code-editor .token.attr-value { color: #ce9178; }
+      .vibrant-code-editor .token.regex { color: #d16969; }
+    `;
+    // Append the style element to the document head
+    document.head.appendChild(styleEl);
+    
+    // Cleanup on component unmount
+    return () => {
+      document.head.removeChild(styleEl);
+    };
+  }, []);
+
   // Check authentication
   useEffect(() => {
     if (!loading && !user) {
@@ -1051,7 +1082,7 @@ def quickProcess(file, drop_cols=[]):
                   </div>
                   
                   {reviewResult.fixedCode && (
-                    <GlassCard className="p-6">
+                    <GlassCard className="p-6 max-w-[110%] lg:max-w-[120%]">
                       <div className="flex justify-between items-center mb-4">
                         <h3 className="text-xl font-medium flex items-center gap-2">
                           <CheckCircle size={20} className="text-green-500" />
@@ -1088,7 +1119,7 @@ def quickProcess(file, drop_cols=[]):
                       <p className="text-muted-foreground mb-4">
                         Here's the optimized version of your code with all suggested fixes applied:
                       </p>
-                      <div className="border border-input rounded-md overflow-hidden bg-[#eaedf2] dark:bg-[#2d3545]">
+                      <div className="border border-input rounded-md overflow-hidden bg-black dark:bg-black w-full max-w-[100%] lg:max-w-[120%] lg:-ml-[10%]">
                         <Editor
                           value={reviewResult.fixedCode}
                           onValueChange={() => {}}
@@ -1097,13 +1128,15 @@ def quickProcess(file, drop_cols=[]):
                           style={{
                             fontFamily: '"JetBrains Mono", "Fira Code", monospace',
                             fontSize: '14px',
-                            backgroundColor: '#eaedf2',
-                            color: '#000000',
-                            minHeight: '300px',
+                            backgroundColor: 'black',
+                            color: '#ffffff',
+                            minHeight: '400px',
                             borderRadius: '0.375rem',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
                           }}
+                          className="min-h-[400px] w-full vibrant-code-editor"
                           readOnly={true}
-                          className="min-h-[300px] w-full"
+                          textareaClassName="syntax-highlight-vibrant"
                         />
                       </div>
                     </GlassCard>
