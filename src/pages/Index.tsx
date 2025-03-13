@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
 import Header from '@/components/layout/Header';
-import { Brain, FileText, ChevronRight, UserCircle } from 'lucide-react';
+import { Brain, FileText, ChevronRight, UserCircle, Mic } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const Index = () => {
@@ -93,6 +93,35 @@ const Index = () => {
                 </ul>
                 <Link to="/concept-explainer">
                   <Button variant="outline" className="w-full">Try AI Explainer</Button>
+                </Link>
+              </GlassCard>
+            </AnimatedContainer>
+
+            <AnimatedContainer animation="fade" delay={500}>
+              <GlassCard variant="elevated" className="p-8 h-full">
+                <div className="bg-primary/10 text-primary w-12 h-12 flex items-center justify-center rounded-lg mb-4">
+                  <Mic size={24} />
+                </div>
+                <h3 className="text-xl font-bold mb-3">Voice Code Assistant</h3>
+                <p className="text-muted-foreground mb-6">
+                  Interact with AI hands-free! Ask programming questions with your voice and receive spoken explanations with code examples.
+                </p>
+                <ul className="space-y-2 mb-6">
+                  <li className="flex items-center">
+                    <span className="text-primary mr-2">✓</span>
+                    <span>Speech recognition & synthesis</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-primary mr-2">✓</span>
+                    <span>Beautifully formatted code examples</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-primary mr-2">✓</span>
+                    <span>Hands-free coding help</span>
+                  </li>
+                </ul>
+                <Link to="/voice-assistant">
+                  <Button variant="outline" className="w-full">Try Voice Assistant</Button>
                 </Link>
               </GlassCard>
             </AnimatedContainer>

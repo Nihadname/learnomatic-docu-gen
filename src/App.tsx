@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import ConceptExplainer from "./pages/ConceptExplainer";
 import DocumentationGenerator from "./pages/DocumentationGenerator";
 import CodeReviewer from "./pages/CodeReviewer";
+import VoiceCodeAssistant from "./pages/VoiceCodeAssistant";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/concept-explainer" element={<ConceptExplainer />} />
             <Route path="/documentation-generator" element={<DocumentationGenerator />} />
             <Route path="/code-reviewer" element={<CodeReviewer />} />
+            <Route path="/voice-assistant" element={<VoiceCodeAssistant />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/profile" element={<Profile />} />
