@@ -87,28 +87,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithGoogle = async () => {
     try {
       // Get the current URL's origin (localhost in dev, actual domain in production)
-      const redirectTo = `${window.location.origin}/auth-callback`;
+      const redirectTo = window.location.origin;
       
-      // First, prepare the URL without triggering the redirect
-      const { data } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
-          skipBrowserRedirect: true, // This prevents the automatic redirect
+          skipBrowserRedirect:true,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
         },
+       
       });
-      
-      // If we got the URL, open it in a new tab
-      if (data?.url) {
-        window.open(data.url, '_blank', 'noopener,noreferrer')
-        return { error: null };
-      } else {
-        return { error: new Error('Failed to generate authentication URL') };
-      }
+      return { error };
     } catch (error) {
       return { error };
     }
