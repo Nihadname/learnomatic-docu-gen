@@ -377,7 +377,7 @@ class OpenAIService {
         }
       ],
       temperature: 0.5,
-      max_tokens: 20000
+      max_tokens: 9000
     };
 
     try {
@@ -460,7 +460,7 @@ class OpenAIService {
         }
       ],
       temperature: 0.3,
-      max_tokens: 20000,
+      max_tokens: 9000,
       response_format: { type: "json_object" }
     };
 
@@ -551,7 +551,7 @@ class OpenAIService {
         }
       ],
       temperature: 0.3,
-      max_tokens: 25000,
+      max_tokens: 9000,
       response_format: { type: "json_object" }
     };
 
