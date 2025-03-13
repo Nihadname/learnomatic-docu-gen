@@ -174,7 +174,7 @@ const ConceptExplainer = () => {
   if (!user) {
     return null;
   }
-
+  
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     defaultValues: {
       topic: '',
@@ -290,7 +290,7 @@ const ConceptExplainer = () => {
           <div className="lg:col-span-2">
             <AnimatedContainer animation="fade" delay={100}>
               <Tabs defaultValue="explore">
-                <TabsList className="grid grid-cols-2 mb-4">
+                  <TabsList className="grid grid-cols-2 mb-4">
                   <TabsTrigger value="explore" className="flex items-center gap-2">
                     <BookOpen size={16} />
                     <span>Explore</span>
@@ -302,8 +302,8 @@ const ConceptExplainer = () => {
                       <Badge variant="secondary" className="ml-1">{savedExplanations.length}</Badge>
                     )}
                   </TabsTrigger>
-                </TabsList>
-
+                  </TabsList>
+                  
                 <TabsContent value="explore">
                   <GlassCard className="p-6">
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -444,15 +444,15 @@ const ConceptExplainer = () => {
                       <h3 className="font-medium">Your Saved Explanations</h3>
                       <div className="relative">
                         <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
+                        <Input
                           placeholder="Search explanations..." 
                           className="pl-8 h-8"
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)} 
                         />
                       </div>
-                    </div>
-                    
+                      </div>
+                      
                     {fetchingExplanations ? (
                       <div className="space-y-3">
                         {[1, 2, 3].map((i) => (
@@ -562,11 +562,11 @@ const ConceptExplainer = () => {
                             </p>
                           </div>
                         ))}
-                      </div>
+                    </div>
                     )}
                   </GlassCard>
-                </TabsContent>
-              </Tabs>
+                  </TabsContent>
+                </Tabs>
             </AnimatedContainer>
           </div>
           
