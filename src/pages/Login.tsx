@@ -89,13 +89,18 @@ const Login = () => {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
-      const { error } = await signInWithGoogle();
+      const { error, directBrowserRedirect } = await signInWithGoogle();
       
       if (error) {
         toast.error(error.message || 'Failed to login with Google');
+      } else if (directBrowserRedirect) {
+        // For iOS and embedded browsers, we're letting the browser redirect directly
+        toast.info('Redirecting to Google authentication...');
+        // Don't set isGoogleLoading to false here since we're leaving the page
       } else {
-        // Show a message about the new window
+        // For desktop and normal mobile browsers, we've opened a new tab
         toast.info('Google sign-in opened in a new tab. Please complete the authentication there.');
+        setIsGoogleLoading(false);
       }
     } catch (error) {
       let message = 'Failed to login with Google';
@@ -103,7 +108,6 @@ const Login = () => {
         message = error.message;
       }
       toast.error(message);
-    } finally {
       setIsGoogleLoading(false);
     }
   };

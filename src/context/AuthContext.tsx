@@ -11,7 +11,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: any | null }>;
   signUp: (email: string, password: string, userData?: { name: string }) => Promise<{ error: any | null }>;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<{ error: any | null }>;
+  signInWithGoogle: () => Promise<{ error: any | null, directBrowserRedirect?: boolean }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,21 +86,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      // Get the current URL's origin (localhost in dev, actual domain in production)
       const redirectTo = window.location.origin;
       
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'select_account',
+      // Check if user is on iOS (iPhone, iPad, iPod)
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      
+      // Check if likely in a WebView or embedded browser
+      const isWebView = 
+        // iOS WebView detection
+        /(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(navigator.userAgent) ||
+        // Android WebView detection
+        /wv|WebView|Linktree/.test(navigator.userAgent) ||
+        // General WebView/embedded browsers checks
+        (/Twitter|FB|facebook|Instagram|Linktree/i.test(navigator.userAgent) || 
+        document.referrer.includes('t.co') || 
+        document.referrer.includes('instagram') ||
+        document.referrer.includes('linktree'));
+      
+      // Direct method for problematic user agents
+      if (isIOS || isWebView) {
+        // Use direct browser redirect for iOS or WebView
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo,
+            skipBrowserRedirect: false, // Let the browser redirect automatically
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'consent',
+            },
           },
-        },
-       
-      });
-      return { error };
+        });
+        
+        return { error, directBrowserRedirect: true };
+      } else {
+        // For desktop and normal mobile browsers, use our new tab approach
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo,
+            skipBrowserRedirect: true, // Don't auto-redirect
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'consent',
+            },
+          },
+        });
+        
+        // If we got the URL, open it in a new tab
+        if (data?.url) {
+          window.open(data.url, '_blank', 'noopener,noreferrer')
+          return { error: null };
+        } else {
+          return { error: new Error('Failed to generate authentication URL') };
+        }
+      }
     } catch (error) {
       return { error };
     }
