@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Brain, ChevronRight, Code, BookOpen, Bookmark, History, BookmarkPlus, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Brain, ChevronRight, Code, BookOpen, Bookmark, History, BookmarkPlus, ChevronDown, CheckCircle2, Search, Trash, Tag } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
@@ -18,18 +18,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { 
+  SavedExplanation, 
+  fetchSavedExplanations, 
+  saveExplanationToSupabase,
+  deleteSavedExplanation,
+  getLocalSavedExplanations,
+  saveExplanationToLocalStorage 
+} from '@/utils/explanationStorage';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FormData {
   topic: string;
   includeCode: boolean;
   programmingLanguage: string;
-}
-
-interface SavedExplanation {
-  id: string;
-  topic: string;
-  content: string;
-  date: string;
 }
 
 const ConceptExplainer = () => {
@@ -38,6 +41,10 @@ const ConceptExplainer = () => {
   const [apiKeyLoading, setApiKeyLoading] = useState<boolean>(false);
   const [savedExplanations, setSavedExplanations] = useState<SavedExplanation[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [fetchingExplanations, setFetchingExplanations] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   
@@ -49,47 +56,111 @@ const ConceptExplainer = () => {
     }
   }, [user, loading, navigate]);
 
-  // Load saved explanations from localStorage on initial load
+  // Load saved explanations from Supabase or localStorage on initial load
   useEffect(() => {
-    const savedItems = localStorage.getItem('savedExplanations');
-    if (savedItems) {
-      try {
-        setSavedExplanations(JSON.parse(savedItems));
-      } catch (e) {
-        console.error('Failed to parse saved explanations', e);
-      }
+    if (!loading) {
+      loadSavedExplanations();
     }
-  }, []);
+  }, [user, loading]);
 
-  const saveExplanation = (topic: string, content: string) => {
-    const newExplanation: SavedExplanation = {
-      id: Date.now().toString(),
-      topic,
-      content,
-      date: new Date().toLocaleString()
-    };
-    
-    const updatedExplanations = [...savedExplanations, newExplanation];
-    setSavedExplanations(updatedExplanations);
-    
-    // Save to localStorage
-    localStorage.setItem('savedExplanations', JSON.stringify(updatedExplanations));
-    
-    toast.success('Explanation saved to your library');
+  // Function to load saved explanations based on user auth status
+  const loadSavedExplanations = async () => {
+    try {
+      setFetchingExplanations(true);
+      
+      if (user) {
+        // Fetch from Supabase if logged in
+        const explanations = await fetchSavedExplanations(user);
+        setSavedExplanations(explanations);
+      } else {
+        // Fallback to localStorage if not logged in
+        const localExplanations = getLocalSavedExplanations();
+        setSavedExplanations(localExplanations);
+      }
+    } catch (error) {
+      console.error('Error loading explanations:', error);
+      toast.error('Failed to load your saved explanations');
+    } finally {
+      setFetchingExplanations(false);
+    }
   };
 
-  const deleteSavedExplanation = (id: string) => {
-    const updatedExplanations = savedExplanations.filter(item => item.id !== id);
-    setSavedExplanations(updatedExplanations);
-    localStorage.setItem('savedExplanations', JSON.stringify(updatedExplanations));
-    toast.success('Explanation removed from your library');
+  // Function to save the current explanation
+  const saveExplanation = async (topic: string, content: string) => {
+    try {
+      setIsSaving(true);
+      
+      let savedExplanation: SavedExplanation | null = null;
+      
+      if (user) {
+        // Save to Supabase if user is logged in
+        savedExplanation = await saveExplanationToSupabase(user, topic, content);
+        if (savedExplanation) {
+          // Update the local state with the new explanation
+          setSavedExplanations(prev => [savedExplanation as SavedExplanation, ...prev]);
+          toast.success('Explanation saved to your library');
+        } else {
+          throw new Error('Failed to save explanation');
+        }
+      } else {
+        // Fallback to localStorage if not logged in
+        savedExplanation = saveExplanationToLocalStorage(topic, content);
+        setSavedExplanations(prev => [savedExplanation as SavedExplanation, ...prev]);
+        toast.success('Explanation saved to your browser (login to save to your account)');
+      }
+    } catch (error) {
+      console.error('Error saving explanation:', error);
+      toast.error('Failed to save explanation');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  // Function to delete a saved explanation
+  const handleDeleteExplanation = async (id: string) => {
+    try {
+      setIsDeleting(id);
+      
+      if (user) {
+        // Delete from Supabase if user is logged in
+        const success = await deleteSavedExplanation(id);
+        if (success) {
+          setSavedExplanations(prev => prev.filter(item => item.id !== id));
+          toast.success('Explanation removed from your library');
+        } else {
+          throw new Error('Failed to delete explanation');
+        }
+      } else {
+        // Delete from localStorage if not logged in
+        const updatedExplanations = savedExplanations.filter(item => item.id !== id);
+        setSavedExplanations(updatedExplanations);
+        localStorage.setItem('savedExplanations', JSON.stringify(updatedExplanations));
+        toast.success('Explanation removed from your library');
+      }
+    } catch (error) {
+      console.error('Error deleting explanation:', error);
+      toast.error('Failed to delete explanation');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  // Function to load a saved explanation
   const loadSavedExplanation = (saved: SavedExplanation) => {
     setExplanation(saved.content);
     setValue('topic', saved.topic);
     setShowHistory(false);
     toast.info('Loaded: ' + saved.topic);
+  };
+  
+  // Search function
+  const filterExplanations = (explanations: SavedExplanation[]) => {
+    if (!searchTerm.trim()) return explanations;
+    
+    return explanations.filter(exp => 
+      exp.topic.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      exp.content.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   };
 
   if (loading) {
@@ -159,6 +230,8 @@ const ConceptExplainer = () => {
       setIsLoading(false);
     }
   };
+
+  const filteredExplanations = filterExplanations(savedExplanations);
 
   const interactiveExamples = [
     {
@@ -308,9 +381,19 @@ const ConceptExplainer = () => {
                           variant="outline"
                           className="w-full gap-2 mt-2"
                           onClick={() => saveExplanation(currentTopic, explanation)}
+                          disabled={isSaving}
                         >
-                          <BookmarkPlus size={16} />
-                          <span>Save This Explanation</span>
+                          {isSaving ? (
+                            <>
+                              <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
+                              <span>Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <BookmarkPlus size={16} />
+                              <span>Save This Explanation</span>
+                            </>
+                          )}
                         </Button>
                       )}
                     </form>
@@ -357,9 +440,32 @@ const ConceptExplainer = () => {
 
                 <TabsContent value="saved">
                   <GlassCard className="p-6">
-                    <h3 className="font-medium mb-4">Your Saved Explanations</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-medium">Your Saved Explanations</h3>
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="Search explanations..." 
+                          className="pl-8 h-8"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)} 
+                        />
+                      </div>
+                    </div>
                     
-                    {savedExplanations.length === 0 ? (
+                    {fetchingExplanations ? (
+                      <div className="space-y-3">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="flex items-center gap-2 p-3 border rounded-md">
+                            <div className="flex-1">
+                              <Skeleton className="h-5 w-3/4 mb-2" />
+                              <Skeleton className="h-3 w-1/2" />
+                            </div>
+                            <Skeleton className="h-8 w-16" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : savedExplanations.length === 0 ? (
                       <div className="text-center py-8">
                         <Bookmark size={48} className="mx-auto text-muted-foreground opacity-30 mb-2" />
                         <p className="text-muted-foreground">You haven't saved any explanations yet</p>
@@ -367,39 +473,93 @@ const ConceptExplainer = () => {
                           Generate an explanation and click "Save This Explanation" to add it to your library
                         </p>
                       </div>
+                    ) : filteredExplanations.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Search size={48} className="mx-auto text-muted-foreground opacity-30 mb-2" />
+                        <p className="text-muted-foreground">No explanations match your search</p>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => setSearchTerm('')}
+                        >
+                          Clear search
+                        </Button>
+                      </div>
                     ) : (
                       <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                        {savedExplanations.map((saved) => (
+                        {filteredExplanations.map((saved) => (
                           <div 
                             key={saved.id} 
-                            className="p-3 border rounded-md hover:bg-primary/5 transition-colors flex justify-between"
+                            className="p-3 border rounded-md hover:bg-primary/5 transition-colors"
                           >
-                            <div className="flex-1 overflow-hidden">
-                              <h4 className="font-medium truncate">
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-medium truncate pr-4">
                                 {saved.topic}
                               </h4>
-                              <p className="text-xs text-muted-foreground">
-                                Saved on {saved.date}
-                              </p>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-8"
+                                  onClick={() => loadSavedExplanation(saved)}
+                                >
+                                  Load
+                                </Button>
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      className="h-8 text-destructive hover:text-destructive/80"
+                                    >
+                                      {isDeleting === saved.id ? (
+                                        <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-destructive animate-spin"></div>
+                                      ) : (
+                                        <Trash size={16} />
+                                      )}
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Delete Explanation</DialogTitle>
+                                      <DialogDescription>
+                                        Are you sure you want to delete this explanation? This action cannot be undone.
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter>
+                                      <Button variant="outline" onClick={() => {}}>Cancel</Button>
+                                      <Button 
+                                        variant="destructive" 
+                                        onClick={() => handleDeleteExplanation(saved.id)}
+                                      >
+                                        {isDeleting === saved.id ? (
+                                          <>
+                                            <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-background animate-spin mr-2"></div>
+                                            Deleting...
+                                          </>
+                                        ) : (
+                                          <>Delete</>
+                                        )}
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
                             </div>
-                            <div className="flex gap-2 ml-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                className="h-8"
-                                onClick={() => loadSavedExplanation(saved)}
-                              >
-                                Load
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                className="h-8 text-destructive hover:text-destructive/80"
-                                onClick={() => deleteSavedExplanation(saved.id)}
-                              >
-                                Delete
-                              </Button>
-                            </div>
+                            <p className="text-xs text-muted-foreground flex items-center gap-2">
+                              <span>
+                                Saved on {new Date(saved.created_at || '').toLocaleString()}
+                              </span>
+                              {saved.tags && saved.tags.length > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <Tag size={12} />
+                                  {saved.tags.map((tag, i) => (
+                                    <Badge key={i} variant="secondary" className="text-xs px-1 py-0">{tag}</Badge>
+                                  ))}
+                                </span>
+                              )}
+                            </p>
                           </div>
                         ))}
                       </div>
