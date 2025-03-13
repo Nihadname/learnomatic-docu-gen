@@ -32,6 +32,29 @@ const Login = () => {
     }
   }, [user, navigate]);
   
+  // Listen for messages from the authentication popup
+  useEffect(() => {
+    const handleAuthMessage = (event: MessageEvent) => {
+      // Verify the origin of the message
+      if (event.origin !== window.location.origin) return;
+      
+      // Check if this is our authentication success message
+      if (event.data === 'AUTHENTICATION_SUCCESSFUL') {
+        // Refresh the page or navigate to home
+        toast.success('Successfully logged in with Google');
+        navigate('/');
+      }
+    };
+    
+    // Add the event listener
+    window.addEventListener('message', handleAuthMessage);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('message', handleAuthMessage);
+    };
+  }, [navigate]);
+  
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     defaultValues: {
       email: '',
@@ -70,8 +93,10 @@ const Login = () => {
       
       if (error) {
         toast.error(error.message || 'Failed to login with Google');
+      } else {
+        // Show a message about the new window
+        toast.info('Google sign-in opened in a new tab. Please complete the authentication there.');
       }
-      // Success is handled by the auth state change in useEffect
     } catch (error) {
       let message = 'Failed to login with Google';
       if (error instanceof Error) {
