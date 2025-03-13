@@ -583,7 +583,7 @@ const ConceptExplainer = () => {
                   )}
                 </div>
               )}
-              <ExplanationResult content={explanation} isLoading={isLoading} />
+              <ExplanationResult content={explanation} isLoading={false} />
               
               {isLoading && (
                 <GlassCard className="p-8">
