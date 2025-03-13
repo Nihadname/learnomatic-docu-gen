@@ -65,6 +65,7 @@ interface ReviewResult {
   issues: CodeIssue[];
   improvements: string[];
   score?: number;
+  fixedCode?: string;
 }
 
 const CodeReviewer = () => {
@@ -239,7 +240,8 @@ const CodeReviewer = () => {
       const result = await openAIService.reviewCode(
         data.codeSnippet, 
         data.language, 
-        data.reviewType
+        data.reviewType,
+        true
       );
       
       setReviewResult(result);
@@ -876,7 +878,70 @@ def quickProcess(file, drop_cols=[]):
           
           <div className="lg:col-span-3">
             <AnimatedContainer animation="fade" delay={300}>
-              {reviewResult ? (
+              {isLoading ? (
+                <GlassCard className="p-8">
+                  <div className="flex flex-col items-center justify-center mb-8">
+                    <div className="relative">
+                      <div className="h-16 w-16 rounded-full border-4 border-primary/30 mb-4"></div>
+                      <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-t-primary border-l-primary border-r-transparent border-b-transparent animate-spin"></div>
+                      <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-transparent border-b-primary border-r-primary animate-spin animation-delay-500" style={{ animationDuration: '2s' }}></div>
+                    </div>
+                    <div className="mt-4 text-center">
+                      <h3 className="text-lg font-medium">Analyzing Your Code</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {apiKeyLoading ? 'Preparing API Key...' : 
+                        'AI is reviewing your code and preparing suggestions...'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {/* Summary Section */}
+                    <div className="space-y-2">
+                      <div className="h-8 bg-primary/10 rounded-md animate-pulse w-2/3"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full mt-4"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-11/12"></div>
+                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-3/4"></div>
+                    </div>
+                    
+                    {/* Issues Section */}
+                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                      <div className="space-y-3">
+                        <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/3"></div>
+                        <div className="space-y-2">
+                          <div className="h-20 bg-red-50 border border-red-200 rounded-md animate-pulse"></div>
+                          <div className="h-20 bg-yellow-50 border border-yellow-200 rounded-md animate-pulse"></div>
+                          <div className="h-20 bg-blue-50 border border-blue-200 rounded-md animate-pulse"></div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/3"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-11/12"></div>
+                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-10/12"></div>
+                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Fixed Code Section */}
+                    <div className="space-y-3">
+                      <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/4"></div>
+                      <div className="p-4 border border-muted/30 rounded-md space-y-2">
+                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-full"></div>
+                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-11/12"></div>
+                        <div className="ml-4 h-4 bg-muted/20 rounded-md animate-pulse w-10/12"></div>
+                        <div className="ml-4 h-4 bg-muted/20 rounded-md animate-pulse w-11/12"></div>
+                        <div className="ml-8 h-4 bg-muted/20 rounded-md animate-pulse w-9/12"></div>
+                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-1/2"></div>
+                      </div>
+                    </div>
+                  </div>
+                </GlassCard>
+              ) : reviewResult ? (
                 <div className="space-y-6">
                   <GlassCard className="p-6">
                     <div className="flex items-center justify-between mb-4">
@@ -984,6 +1049,65 @@ def quickProcess(file, drop_cols=[]):
                       </ul>
                     </GlassCard>
                   </div>
+                  
+                  {reviewResult.fixedCode && (
+                    <GlassCard className="p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-medium flex items-center gap-2">
+                          <CheckCircle size={20} className="text-green-500" />
+                          <span>Fixed Code</span>
+                        </h3>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex items-center gap-1"
+                            onClick={() => {
+                              navigator.clipboard.writeText(reviewResult.fixedCode || '');
+                              toast.success('Fixed code copied to clipboard');
+                            }}
+                          >
+                            <Copy size={14} />
+                            <span>Copy Code</span>
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex items-center gap-1"
+                            onClick={() => {
+                              setValue('codeSnippet', reviewResult.fixedCode || '');
+                              setEditorValue(reviewResult.fixedCode || '');
+                              toast.success('Fixed code applied to editor');
+                            }}
+                          >
+                            <FileText size={14} />
+                            <span>Apply Changes</span>
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="text-muted-foreground mb-4">
+                        Here's the optimized version of your code with all suggested fixes applied:
+                      </p>
+                      <div className="border border-input rounded-md overflow-hidden bg-[#eaedf2] dark:bg-[#2d3545]">
+                        <Editor
+                          value={reviewResult.fixedCode}
+                          onValueChange={() => {}}
+                          highlight={code => highlight(code, getLanguageHighlighter(language), language)}
+                          padding={16}
+                          style={{
+                            fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                            fontSize: '14px',
+                            backgroundColor: '#eaedf2',
+                            color: '#000000',
+                            minHeight: '300px',
+                            borderRadius: '0.375rem',
+                          }}
+                          readOnly={true}
+                          className="min-h-[300px] w-full"
+                        />
+                      </div>
+                    </GlassCard>
+                  )}
                 </div>
               ) : diagramLoading ? (
                 <GlassCard className="p-8 flex flex-col items-center justify-center min-h-[400px] text-center">

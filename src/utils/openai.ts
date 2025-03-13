@@ -408,7 +408,8 @@ class OpenAIService {
   async reviewCode(
     codeSnippet: string,
     language: string,
-    reviewType: 'bugs' | 'performance' | 'style' | 'comprehensive'
+    reviewType: 'bugs' | 'performance' | 'style' | 'comprehensive',
+    generateFixedCode: boolean = false
   ): Promise<any> {
     // Try to ensure we have an API key
     const apiKey = await this.ensureApiKey();
@@ -440,11 +441,11 @@ class OpenAIService {
         }
       ],
       "improvements": ["List of general improvement suggestions"],
-      "score": <numerical score from 0-100>
+      "score": <numerical score from 0-100>${generateFixedCode ? ',\n      "fixedCode": "The complete fixed code with all issues resolved"' : ''}
     }
     
     Make sure every identified issue has an accurate line number reference and a specific, actionable suggestion for fixing it.
-    Keep explanations clear and educational so the developer can learn from your feedback.`;
+    Keep explanations clear and educational so the developer can learn from your feedback.${generateFixedCode ? '\n\nImportantly, since you are asked to provide the complete fixed code, make sure to apply all the suggested fixes and improvements to create a cleaned up, optimized version of the original code in the "fixedCode" field.' : ''}`;
 
     const options: OpenAIRequestOptions = {
       model: "gpt-4o",
