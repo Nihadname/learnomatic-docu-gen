@@ -28,7 +28,7 @@ import {
 } from '@/utils/explanationStorage';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import PushToGitHub from '@/components/github/PushToGitHub';
+
 
 interface FormData {
   topic: string;
@@ -575,12 +575,7 @@ const ConceptExplainer = () => {
             <AnimatedContainer animation="fade" delay={300}>
               {explanation && (
                 <div className="mb-4 flex justify-end gap-2">
-                  {explanation && (
-                    <PushToGitHub 
-                      content={explanation} 
-                      title={currentTopic}
-                    />
-                  )}
+                 
                 </div>
               )}
               <ExplanationResult content={explanation} isLoading={false} />
