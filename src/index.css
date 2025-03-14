@@ -234,3 +234,83 @@
   font-weight: 800 !important;
   -webkit-text-fill-color: black !important;
 }
+
+/* Add responsive handling for AI responses */
+.ai-response, 
+.formatted-message,
+.code-editor-container,
+.code-container,
+.message-container,
+pre,
+code {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  word-break: break-word;
+  word-wrap: break-word;
+}
+
+pre code {
+  white-space: pre;
+  word-wrap: normal;
+  overflow-x: auto;
+}
+
+/* General response container styling */
+.response-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Tables in responses */
+table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Markdown content mobile responsiveness */
+.markdown-content {
+  width: 100%;
+  overflow-wrap: break-word;
+}
+
+.markdown-content p,
+.markdown-content li,
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+  max-width: 100%;
+}
+
+/* Ensure code blocks are properly scrollable */
+.markdown-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+  word-wrap: normal;
+}
+
+/* Force content to stay within container on mobile */
+@media (max-width: 640px) {
+  * {
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+  
+  .mobile-overflow-fix {
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    word-wrap: break-word;
+  }
+}

@@ -987,7 +987,7 @@ def quickProcess(file, drop_cols=[]):
                         </div>
                       )}
                     </div>
-                    <p className="text-muted-foreground">{reviewResult.summary}</p>
+                    <p className="text-muted-foreground break-words overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>{reviewResult.summary}</p>
                   </GlassCard>
                   
                   {diagramResult && (
@@ -1044,18 +1044,18 @@ def quickProcess(file, drop_cols=[]):
                             }`}
                             onClick={() => setActiveIssue(index)}
                           >
-                            <div className="flex items-start gap-2">
+                            <div className="flex items-start gap-3">
                               {getIssueIcon(issue.type)}
-                              <div className="flex-1">
+                              <div className="flex-1 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
                                 <div className="flex justify-between">
                                   <p className="font-medium">Line {issue.line}</p>
                                   <span className="text-xs capitalize px-2 py-0.5 rounded-full bg-white">
                                     {issue.type}
                                   </span>
                                 </div>
-                                <p className="text-sm mt-1">{issue.message}</p>
+                                <p className="text-sm mt-1 break-words">{issue.message}</p>
                                 {issue.fix && (
-                                  <div className="mt-2 p-2 bg-white/50 rounded text-xs font-mono">
+                                  <div className="mt-2 p-2 bg-white/50 rounded text-xs font-mono overflow-x-auto break-words">
                                     {issue.fix}
                                   </div>
                                 )}
@@ -1071,9 +1071,9 @@ def quickProcess(file, drop_cols=[]):
                         <CheckCircle size={18} />
                         <span>Improvements Suggested</span>
                       </h3>
-                      <ul className="space-y-2 list-disc pl-5">
+                      <ul className="space-y-2 list-disc pl-5 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
                         {reviewResult.improvements.map((improvement, index) => (
-                          <li key={index} className="text-muted-foreground">
+                          <li key={index} className="text-muted-foreground break-words">
                             {improvement}
                           </li>
                         ))}

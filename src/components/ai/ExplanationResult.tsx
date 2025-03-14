@@ -301,162 +301,164 @@ const ExplanationResult: React.FC<ExplanationResultProps> = ({ content, isLoadin
         </TabsContent>
 
         <div className="p-6 overflow-x-hidden">
-          <ReactMarkdown
-            components={{
-              h1: ({ node, ...props }) => {
-                const text = (props.children as any).toString();
-                const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                const isCollapsed = collapsedSections[id];
-                
-                return (
-                  <div className="mb-4 group" id={id}>
-                    <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleSection(id)}>
-                      <h1 className="text-2xl font-bold mt-6 break-words" {...props} />
-                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                      </Button>
+          <div className="mobile-content-container max-w-full overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <ReactMarkdown
+              components={{
+                h1: ({ node, ...props }) => {
+                  const text = (props.children as any).toString();
+                  const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                  const isCollapsed = collapsedSections[id];
+                  
+                  return (
+                    <div className="mb-4 group" id={id}>
+                      <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleSection(id)}>
+                        <h1 className="text-2xl font-bold mt-6 break-words" {...props} />
+                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                        </Button>
+                      </div>
+                      {isCollapsed && <div className="text-muted-foreground italic">Collapsed - click to expand</div>}
                     </div>
-                    {isCollapsed && <div className="text-muted-foreground italic">Collapsed - click to expand</div>}
-                  </div>
-                )
-              },
-              h2: ({ node, ...props }) => {
-                const text = (props.children as any).toString();
-                const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                const isCollapsed = collapsedSections[id];
-                
-                return (
-                  <div className="mb-3 group" id={id}>
-                    <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleSection(id)}>
-                      <h2 className="text-xl font-bold mt-5 break-words" {...props} />
-                      <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                      </Button>
+                  )
+                },
+                h2: ({ node, ...props }) => {
+                  const text = (props.children as any).toString();
+                  const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                  const isCollapsed = collapsedSections[id];
+                  
+                  return (
+                    <div className="mb-3 group" id={id}>
+                      <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleSection(id)}>
+                        <h2 className="text-xl font-bold mt-5 break-words" {...props} />
+                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                        </Button>
+                      </div>
+                      {isCollapsed && <div className="text-muted-foreground italic">Collapsed - click to expand</div>}
                     </div>
-                    {isCollapsed && <div className="text-muted-foreground italic">Collapsed - click to expand</div>}
-                  </div>
-                )
-              },
-              h3: ({ node, ...props }) => <h3 className="text-lg font-bold mt-4 mb-2 break-words" {...props} />,
-              p: ({ node, children, ...props }) => {
-                // Check if this paragraph is inside a collapsed section
-                const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
-                if (parentSection && collapsedSections[parentSection]) {
-                  return null;
-                }
-                return <p className="my-3 leading-relaxed break-words" {...props}>{children}</p>
-              },
-              ul: ({ node, children, ...props }) => {
-                // Check if this list is inside a collapsed section
-                const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
-                if (parentSection && collapsedSections[parentSection]) {
-                  return null;
-                }
-                return <ul className="list-disc pl-6 my-3" {...props}>{children}</ul>
-              },
-              ol: ({ node, children, ...props }) => {
-                // Check if this list is inside a collapsed section
-                const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
-                if (parentSection && collapsedSections[parentSection]) {
-                  return null;
-                }
-                return <ol className="list-decimal pl-6 my-3" {...props}>{children}</ol>
-              },
-              li: ({ node, ...props }) => <li className="my-1 break-words" {...props} />,
-              a: ({ node, ...props }) => (
-                <a className="text-primary hover:underline break-words" target="_blank" rel="noopener noreferrer" {...props} />
-              ),
-              blockquote: ({ node, children, ...props }) => {
-                const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
-                if (parentSection && collapsedSections[parentSection]) {
-                  return null;
-                }
-                return (
-                  <blockquote className="border-l-4 border-primary/50 pl-4 italic my-4 bg-primary/5 p-3 rounded-r-md break-words" {...props}>
-                    {children}
-                  </blockquote>
-                )
-              },
-              hr: ({ node, ...props }) => <Separator className="my-4" {...props} />,
-              code: ({ className, children, ...props }) => {
-                const match = /language-(\w+)/.exec(className || '');
-                const parentSection = (props as any).node?.parentElement?.closest('div[id]')?.id;
-                if (parentSection && collapsedSections[parentSection]) {
-                  return null;
-                }
-                
-                const code = String(children).replace(/\n$/, '');
-                
-                return !className ? (
-                  <code
-                    className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono break-words"
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                ) : (
-                  <div className="relative group overflow-x-auto">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleCodeCopy(code)}
-                    >
-                      <Copy size={14} />
-                    </Button>
-                    <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
-                      <SyntaxHighlighter
-                        style={oneLight}
-                        language={match ? match[1] : ''}
-                        PreTag="div"
-                        className="rounded-md my-4 !bg-secondary/50"
-                        customStyle={{ padding: '1rem' }}
-                        {...props}
-                      >
-                        {code}
-                      </SyntaxHighlighter>
-                    </div>
-                  </div>
-                );
-              },
-              table: ({ node, children, ...props }) => {
-                const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
-                if (parentSection && collapsedSections[parentSection]) {
-                  return null;
-                }
-                return (
-                  <div className="overflow-x-auto my-4 border rounded-md">
-                    <table className="min-w-full divide-y divide-border" {...props}>
+                  )
+                },
+                h3: ({ node, ...props }) => <h3 className="text-lg font-bold mt-4 mb-2 break-words" {...props} />,
+                p: ({ node, children, ...props }) => {
+                  // Check if this paragraph is inside a collapsed section
+                  const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
+                  if (parentSection && collapsedSections[parentSection]) {
+                    return null;
+                  }
+                  return <p className="my-3 leading-relaxed break-words" {...props}>{children}</p>
+                },
+                ul: ({ node, children, ...props }) => {
+                  // Check if this list is inside a collapsed section
+                  const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
+                  if (parentSection && collapsedSections[parentSection]) {
+                    return null;
+                  }
+                  return <ul className="list-disc pl-6 my-3" {...props}>{children}</ul>
+                },
+                ol: ({ node, children, ...props }) => {
+                  // Check if this list is inside a collapsed section
+                  const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
+                  if (parentSection && collapsedSections[parentSection]) {
+                    return null;
+                  }
+                  return <ol className="list-decimal pl-6 my-3" {...props}>{children}</ol>
+                },
+                li: ({ node, ...props }) => <li className="my-1 break-words" {...props} />,
+                a: ({ node, ...props }) => (
+                  <a className="text-primary hover:underline break-words" target="_blank" rel="noopener noreferrer" {...props} />
+                ),
+                blockquote: ({ node, children, ...props }) => {
+                  const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
+                  if (parentSection && collapsedSections[parentSection]) {
+                    return null;
+                  }
+                  return (
+                    <blockquote className="border-l-4 border-primary/50 pl-4 italic my-4 bg-primary/5 p-3 rounded-r-md break-words" {...props}>
                       {children}
-                    </table>
-                  </div>
-                )
-              },
-              thead: (props) => <thead className="bg-primary/5" {...props} />,
-              tbody: (props) => <tbody className="divide-y divide-border" {...props} />,
-              tr: (props) => <tr className="even:bg-primary/[0.02]" {...props} />,
-              th: (props) => <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider" {...props} />,
-              td: (props) => <td className="px-3 py-2 text-sm" {...props} />,
-              
-              // Handle details/summary elements for quiz answers
-              details: ({ node, children, ...props }) => {
-                const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
-                if (parentSection && collapsedSections[parentSection]) {
-                  return null;
-                }
-                return (
-                  <details className="my-2 border rounded-md p-2 bg-primary/5" {...props}>
-                    {children}
-                  </details>
-                )
-              },
-              summary: (props) => (
-                <summary className="cursor-pointer font-medium text-primary hover:text-primary/80" {...props} />
-              ),
-            }}
-          >
-            {content}
-          </ReactMarkdown>
+                    </blockquote>
+                  )
+                },
+                hr: ({ node, ...props }) => <Separator className="my-4" {...props} />,
+                code: ({ className, children, ...props }) => {
+                  const match = /language-(\w+)/.exec(className || '');
+                  const parentSection = (props as any).node?.parentElement?.closest('div[id]')?.id;
+                  if (parentSection && collapsedSections[parentSection]) {
+                    return null;
+                  }
+                  
+                  const code = String(children).replace(/\n$/, '');
+                  
+                  return !className ? (
+                    <code
+                      className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono break-words"
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  ) : (
+                    <div className="relative group overflow-x-auto">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleCodeCopy(code)}
+                      >
+                        <Copy size={14} />
+                      </Button>
+                      <div className="overflow-x-auto w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        <SyntaxHighlighter
+                          style={oneLight}
+                          language={match ? match[1] : ''}
+                          PreTag="div"
+                          className="rounded-md my-4 !bg-secondary/50"
+                          customStyle={{ padding: '1rem' }}
+                          {...props}
+                        >
+                          {code}
+                        </SyntaxHighlighter>
+                      </div>
+                    </div>
+                  );
+                },
+                table: ({ node, children, ...props }) => {
+                  const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
+                  if (parentSection && collapsedSections[parentSection]) {
+                    return null;
+                  }
+                  return (
+                    <div className="overflow-x-auto my-4 border rounded-md">
+                      <table className="min-w-full divide-y divide-border" {...props}>
+                        {children}
+                      </table>
+                    </div>
+                  )
+                },
+                thead: (props) => <thead className="bg-primary/5" {...props} />,
+                tbody: (props) => <tbody className="divide-y divide-border" {...props} />,
+                tr: (props) => <tr className="even:bg-primary/[0.02]" {...props} />,
+                th: (props) => <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider" {...props} />,
+                td: (props) => <td className="px-3 py-2 text-sm" {...props} />,
+                
+                // Handle details/summary elements for quiz answers
+                details: ({ node, children, ...props }) => {
+                  const parentSection = (node as any).parentElement?.closest('div[id]')?.id;
+                  if (parentSection && collapsedSections[parentSection]) {
+                    return null;
+                  }
+                  return (
+                    <details className="my-2 border rounded-md p-2 bg-primary/5" {...props}>
+                      {children}
+                    </details>
+                  )
+                },
+                summary: (props) => (
+                  <summary className="cursor-pointer font-medium text-primary hover:text-primary/80" {...props} />
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
         </div>
       </Tabs>
     </GlassCard>
