@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Brain, ChevronRight, Code, BookOpen, Bookmark, History, BookmarkPlus, ChevronDown, CheckCircle2, Search, Trash, Tag, Github } from 'lucide-react';
+import { Brain, ChevronRight, Code, BookOpen, Bookmark, History, BookmarkPlus, ChevronDown, CheckCircle2, Search, Trash, Tag, Github, FileText, Download, Printer, FileDown } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
@@ -28,6 +28,11 @@ import {
 } from '@/utils/explanationStorage';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import html2pdf from 'html2pdf.js';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark, prism } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 
 interface FormData {
@@ -35,6 +40,129 @@ interface FormData {
   includeCode: boolean;
   programmingLanguage: string;
 }
+
+// Add a utility function to extract and format code blocks for PDF export
+const formatMarkdownForPdf = (markdown: string, programmingLanguage: string) => {
+  // Replace markdown code blocks with styled divs for better PDF rendering
+  let formattedContent = markdown.replace(
+    /```(\w+)?\n([\s\S]*?)```/g, 
+    (_, language, code) => {
+      const lang = language || programmingLanguage || 'javascript';
+      return `<div class="pdf-code-block" data-language="${lang}">${code}</div>`;
+    }
+  );
+  
+  // Format headings
+  formattedContent = formattedContent
+    .replace(/^# (.*$)/gm, '<h1 class="pdf-heading pdf-h1">$1</h1>')
+    .replace(/^## (.*$)/gm, '<h2 class="pdf-heading pdf-h2">$1</h2>')
+    .replace(/^### (.*$)/gm, '<h3 class="pdf-heading pdf-h3">$1</h3>');
+    
+  // Format bold and italic text
+  formattedContent = formattedContent
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+  // Format lists
+  formattedContent = formattedContent
+    .replace(/^\s*\d+\.\s+(.*$)/gm, '<div class="pdf-list-item pdf-ordered">$1</div>')
+    .replace(/^\s*[\-\*]\s+(.*$)/gm, '<div class="pdf-list-item pdf-unordered">$1</div>');
+    
+  // Add paragraphs to text content
+  formattedContent = formattedContent
+    .replace(/^(?!<[hd]|$)(.*$)/gm, '<p class="pdf-paragraph">$1</p>');
+  
+  return formattedContent;
+};
+
+// Add CSS styles for PDF export
+const pdfStyles = `
+  .pdf-container {
+    font-family: 'Helvetica', Arial, sans-serif;
+    color: #333;
+    line-height: 1.5;
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .pdf-title {
+    font-size: 24px;
+    color: #2563eb;
+    margin-bottom: 20px;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .pdf-heading {
+    margin-top: 25px;
+    margin-bottom: 15px;
+    color: #1e40af;
+  }
+  .pdf-h1 { font-size: 22px; }
+  .pdf-h2 { font-size: 20px; }
+  .pdf-h3 { font-size: 18px; }
+  .pdf-paragraph {
+    margin-bottom: 15px;
+    text-align: justify;
+  }
+  .pdf-code-block {
+    font-family: 'Courier New', monospace;
+    background-color: #f8f9fa;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 15px 0;
+    overflow-x: auto;
+    white-space: pre;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #374151;
+  }
+  .pdf-language-tag {
+    display: inline-block;
+    background-color: #e5e7eb;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .pdf-list-item {
+    margin: 8px 0;
+    padding-left: 20px;
+    position: relative;
+  }
+  .pdf-ordered:before {
+    content: "•";
+    position: absolute;
+    left: 5px;
+  }
+  .pdf-unordered:before {
+    content: "•";
+    position: absolute;
+    left: 5px;
+  }
+  .pdf-footer {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 12px;
+    color: #6b7280;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 15px;
+  }
+  .pdf-metadata {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+  .pdf-code-caption {
+    font-style: italic;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+`;
 
 const ConceptExplainer = () => {
   const [explanation, setExplanation] = useState<string>('');
@@ -46,8 +174,11 @@ const ConceptExplainer = () => {
   const [fetchingExplanations, setFetchingExplanations] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [pdfTheme, setPdfTheme] = useState<'light' | 'dark'>('light');
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const explanationRef = useRef<HTMLDivElement>(null);
   
   // Check authentication
   useEffect(() => {
@@ -162,6 +293,131 @@ const ConceptExplainer = () => {
       exp.topic.toLowerCase().includes(searchTerm.toLowerCase()) || 
       exp.content.toLowerCase().includes(searchTerm.toLowerCase())
     );
+  };
+
+  // Function to export explanation as enhanced PDF
+  const exportAsPdf = async () => {
+    if (!explanation || !currentTopic) {
+      toast.error('No explanation to export');
+      return;
+    }
+    
+    try {
+      setIsExporting(true);
+      toast.loading('Preparing your PDF with enhanced formatting...', {
+        id: 'pdf-export',
+        duration: 5000,
+      });
+      
+      // Create a temporary div to render the content
+      const tempDiv = document.createElement('div');
+      tempDiv.className = 'pdf-container';
+      
+      // Add metadata and title
+      const date = new Date().toLocaleDateString();
+      const metadata = `
+        <div class="pdf-metadata">
+          <div>Generated on: ${date}</div>
+          <div>Topic: ${currentTopic}</div>
+        </div>
+      `;
+      
+      const title = `<h1 class="pdf-title">${currentTopic}</h1>`;
+      
+      // Format the markdown content
+      const formattedContent = formatMarkdownForPdf(explanation, watch('programmingLanguage'));
+      
+      // Add a footer
+      const footer = `
+        <div class="pdf-footer">
+          <p>Generated by LearnOmatic | AI-Powered Learning & Documentation Assistant</p>
+          <p>${date}</p>
+        </div>
+      `;
+      
+      // Add a table of contents placeholder
+      const tableOfContents = `
+        <div class="pdf-toc">
+          <h2 class="pdf-heading pdf-h2">Table of Contents</h2>
+          <div class="pdf-toc-content">
+            <!-- Will be filled programmatically -->
+          </div>
+        </div>
+      `;
+      
+      // Combine all elements
+      tempDiv.innerHTML = `
+        <style>${pdfStyles}</style>
+        ${metadata}
+        ${title}
+        ${tableOfContents}
+        ${formattedContent}
+        ${footer}
+      `;
+      
+      // Apply syntax highlighting to code blocks
+      const codeBlocks = tempDiv.querySelectorAll('.pdf-code-block');
+      codeBlocks.forEach((block: any) => {
+        const language = block.getAttribute('data-language') || 'javascript';
+        const code = block.textContent || '';
+        
+        // Create language tag
+        const languageTag = document.createElement('div');
+        languageTag.className = 'pdf-language-tag';
+        languageTag.textContent = language;
+        
+        // Create styled code element
+        const styledCode = document.createElement('pre');
+        styledCode.className = pdfTheme === 'dark' ? 'pdf-code-dark' : 'pdf-code-light';
+        styledCode.style.backgroundColor = pdfTheme === 'dark' ? '#282c34' : '#f8f9fa';
+        styledCode.style.color = pdfTheme === 'dark' ? '#abb2bf' : '#383a42';
+        styledCode.style.borderRadius = '4px';
+        styledCode.style.padding = '12px';
+        styledCode.style.overflowX = 'auto';
+        styledCode.style.fontFamily = 'Consolas, Monaco, "Andale Mono", monospace';
+        styledCode.style.fontSize = '14px';
+        styledCode.style.lineHeight = '1.5';
+        
+        // Add code with syntax coloring
+        // This is a simple approach - for more advanced syntax highlighting in PDF
+        // you would need to process the code through a syntax highlighter
+        styledCode.textContent = code;
+        
+        // Replace the original block with the styled elements
+        const container = document.createElement('div');
+        container.appendChild(languageTag);
+        container.appendChild(styledCode);
+        
+        // Optional: Add a caption
+        const caption = document.createElement('div');
+        caption.className = 'pdf-code-caption';
+        caption.textContent = `Example code in ${language}`;
+        container.appendChild(caption);
+        
+        block.replaceWith(container);
+      });
+      
+      // Generate PDF options
+      const options = {
+        margin: [15, 15, 15, 15], // top, left, bottom, right
+        filename: `${currentTopic.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_explanation.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      };
+      
+      // Generate the PDF
+      await html2pdf().from(tempDiv).set(options).save();
+      
+      toast.dismiss('pdf-export');
+      toast.success('PDF downloaded successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.dismiss('pdf-export');
+      toast.error('Failed to generate PDF');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (loading) {
@@ -575,87 +831,60 @@ const ConceptExplainer = () => {
             <AnimatedContainer animation="fade" delay={300}>
               {explanation && (
                 <div className="mb-4 flex justify-end gap-2">
-                 
+                  {/* Add export options here */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="gap-2">
+                        <FileDown size={16} />
+                        <span>Export</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      
+                      <div className="px-2 py-1.5">
+                        <p className="text-xs text-muted-foreground mb-1">PDF Theme</p>
+                        <ToggleGroup type="single" value={pdfTheme} onValueChange={(value) => value && setPdfTheme(value as 'light' | 'dark')}>
+                          <ToggleGroupItem value="light" size="sm" className="text-xs">Light</ToggleGroupItem>
+                          <ToggleGroupItem value="dark" size="sm" className="text-xs">Dark</ToggleGroupItem>
+                        </ToggleGroup>
+                      </div>
+                      
+                      <DropdownMenuItem 
+                        onClick={exportAsPdf}
+                        disabled={isExporting}
+                        className="gap-2"
+                      >
+                        {isExporting ? (
+                          <>
+                            <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary animate-spin"></div>
+                            <span>Generating PDF...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileText size={16} />
+                            <span>Enhanced PDF</span>
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => window.print()}
+                        className="gap-2"
+                      >
+                        <Printer size={16} />
+                        <span>Print</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
-              <ExplanationResult content={explanation} isLoading={false} />
               
-              {isLoading && (
-                <GlassCard className="p-8">
-                  <div className="flex flex-col items-center justify-center mb-8">
-                    <div className="relative">
-                      <div className="h-16 w-16 rounded-full border-4 border-primary/30 mb-4"></div>
-                      <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-t-primary border-l-primary border-r-transparent border-b-transparent animate-spin"></div>
-                      <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-transparent border-b-primary border-r-primary animate-spin animation-delay-500" style={{ animationDuration: '2s' }}></div>
-                    </div>
-                    <div className="mt-4 text-center">
-                      <h3 className="text-lg font-medium">Crafting Interactive Explanation</h3>
-                      <p className="text-sm text-muted-foreground mt-1">AI is creating an engaging explanation with visual elements and examples...</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    {/* Title Section */}
-                    <div className="space-y-2">
-                      <div className="h-8 bg-primary/10 rounded-md animate-pulse w-2/3 mx-auto"></div>
-                      <div className="flex justify-center gap-3 my-3">
-                        <div className="h-5 w-24 bg-muted/30 rounded-full animate-pulse delay-100"></div>
-                        <div className="h-5 w-24 bg-muted/30 rounded-full animate-pulse delay-150"></div>
-                        <div className="h-5 w-24 bg-muted/30 rounded-full animate-pulse delay-200"></div>
-                      </div>
-                    </div>
-                    
-                    {/* Quick Summary */}
-                    <div className="p-4 border border-muted/30 rounded-md bg-muted/5 space-y-2">
-                      <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/4 mb-2"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-11/12"></div>
-                      <div className="h-4 bg-muted/30 rounded-md animate-pulse w-3/4"></div>
-                    </div>
-                    
-                    {/* Visual Sections */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-3">
-                        <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/2"></div>
-                        <div className="space-y-2">
-                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
-                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-11/12"></div>
-                          <div className="h-4 bg-muted/30 rounded-md animate-pulse w-full"></div>
-                        </div>
-                      </div>
-                      <div className="border border-dashed border-muted/50 rounded-md p-3 bg-muted/5 flex items-center justify-center">
-                        <div className="w-full h-32 bg-primary/5 animate-pulse rounded-md flex items-center justify-center">
-                          <div className="text-xs text-muted-foreground">Visual Diagram</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Code Example */}
-                    <div className="p-4 border border-muted rounded-md bg-background/80">
-                      <div className="h-5 w-1/3 bg-primary/10 rounded-md animate-pulse mb-3"></div>
-                      <div className="space-y-2">
-                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-full"></div>
-                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-11/12"></div>
-                        <div className="ml-4 h-4 bg-muted/20 rounded-md animate-pulse w-10/12 delay-100"></div>
-                        <div className="ml-4 h-4 bg-muted/20 rounded-md animate-pulse w-11/12 delay-150"></div>
-                        <div className="ml-8 h-4 bg-muted/20 rounded-md animate-pulse w-9/12 delay-200"></div>
-                        <div className="h-4 bg-muted/20 rounded-md animate-pulse w-1/2 delay-100"></div>
-                      </div>
-                    </div>
-                    
-                    {/* Interactive Quiz */}
-                    <div className="space-y-3">
-                      <div className="h-6 bg-primary/10 rounded-md animate-pulse w-1/3"></div>
-                      <div className="h-5 bg-muted/30 rounded-md animate-pulse w-full"></div>
-                      <div className="space-y-2 mt-3">
-                        <div className="h-10 bg-muted/20 rounded-md animate-pulse w-full"></div>
-                        <div className="h-10 bg-muted/20 rounded-md animate-pulse w-full"></div>
-                        <div className="h-10 bg-muted/20 rounded-md animate-pulse w-full"></div>
-                      </div>
-                    </div>
-                  </div>
-                </GlassCard>
-              )}
+              <div ref={explanationRef}>
+                <ExplanationResult content={explanation} isLoading={false} />
+              </div>
               
               {!explanation && !isLoading && (
                 <GlassCard className="p-8 flex flex-col items-center justify-center min-h-[400px] text-center">
