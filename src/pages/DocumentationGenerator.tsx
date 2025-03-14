@@ -1343,7 +1343,7 @@ Features:
                       ) : (
                         <div className="code-editor" ref={editorRef}>
                           <input type="hidden" {...register('codeSnippet', { required: 'This field is required' })} />
-                          <div className="ensure-text-visible" style={{ backgroundColor: '#eaedf2', color: 'black' }}>
+                          <div className="ensure-text-visible overflow-x-auto" style={{ backgroundColor: '#eaedf2', color: 'black', WebkitOverflowScrolling: 'touch' }}>
                             <Editor
                               value={editorValue}
                               onValueChange={handleCodeChange}

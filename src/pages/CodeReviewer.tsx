@@ -795,7 +795,7 @@ def quickProcess(file, drop_cols=[]):
                     <div className="code-editor-container border border-input overflow-hidden bg-[#eaedf2] dark:bg-[#2d3545]">
                       <div className="code-editor" ref={editorRef} style={{ color: 'black' }}>
                         <input type="hidden" {...register('codeSnippet', { required: 'This field is required' })} />
-                        <div className="ensure-text-visible" style={{ backgroundColor: '#eaedf2', color: 'black' }}>
+                        <div className="ensure-text-visible overflow-x-auto" style={{ backgroundColor: '#eaedf2', color: 'black', WebkitOverflowScrolling: 'touch' }}>
                           <Editor
                             value={editorValue}
                             onValueChange={handleCodeChange}
@@ -1119,25 +1119,27 @@ def quickProcess(file, drop_cols=[]):
                       <p className="text-muted-foreground mb-4">
                         Here's the optimized version of your code with all suggested fixes applied:
                       </p>
-                      <div className="border border-input rounded-md overflow-hidden bg-black dark:bg-black w-full max-w-[100%] lg:max-w-[120%] lg:-ml-[10%]">
-                        <Editor
-                          value={reviewResult.fixedCode}
-                          onValueChange={() => {}}
-                          highlight={code => highlight(code, getLanguageHighlighter(language), language)}
-                          padding={16}
-                          style={{
-                            fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                            fontSize: '14px',
-                            backgroundColor: 'black',
-                            color: '#ffffff',
-                            minHeight: '400px',
-                            borderRadius: '0.375rem',
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-                          }}
-                          className="min-h-[400px] w-full vibrant-code-editor"
-                          readOnly={true}
-                          textareaClassName="syntax-highlight-vibrant"
-                        />
+                      <div className="border border-input rounded-md overflow-hidden bg-black dark:bg-black w-full">
+                        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                          <Editor
+                            value={reviewResult.fixedCode}
+                            onValueChange={() => {}}
+                            highlight={code => highlight(code, getLanguageHighlighter(language), language)}
+                            padding={16}
+                            style={{
+                              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                              fontSize: '14px',
+                              backgroundColor: 'black',
+                              color: '#ffffff',
+                              minHeight: '400px',
+                              borderRadius: '0.375rem',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                            }}
+                            className="min-h-[400px] w-full vibrant-code-editor"
+                            readOnly={true}
+                            textareaClassName="syntax-highlight-vibrant"
+                          />
+                        </div>
                       </div>
                     </GlassCard>
                   )}
