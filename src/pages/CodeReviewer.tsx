@@ -104,6 +104,46 @@ const CodeReviewer = () => {
       .vibrant-code-editor .token.attr-name { color: #9cdcfe; }
       .vibrant-code-editor .token.attr-value { color: #ce9178; }
       .vibrant-code-editor .token.regex { color: #d16969; }
+      
+      .fixed-code-container {
+        z-index: 1;
+        transition: all 0.3s ease;
+      }
+      
+      .fixed-code-container .editor-textarea-element {
+        padding-left: 12px !important;
+      }
+      
+      .fixed-code-editor-container {
+        position: relative;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+      }
+      
+      .fixed-code-editor-container::-webkit-scrollbar {
+        height: 8px;
+      }
+      
+      .fixed-code-editor-container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      .fixed-code-editor-container::-webkit-scrollbar-thumb {
+        background-color: rgba(155, 155, 155, 0.5);
+        border-radius: 20px;
+        border: 3px solid transparent;
+      }
+      
+      @media (max-width: 768px) {
+        .fixed-code-container {
+          margin-left: 0 !important;
+          max-width: 100% !important;
+          overflow-x: auto;
+        }
+      }
     `;
     // Append the style element to the document head
     document.head.appendChild(styleEl);
@@ -925,7 +965,7 @@ def quickProcess(file, drop_cols=[]):
             </AnimatedContainer>
           </div>
           
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 relative overflow-visible">
             <AnimatedContainer animation="fade" delay={300}>
               {isLoading ? (
                 <GlassCard className="p-8">
@@ -1100,66 +1140,71 @@ def quickProcess(file, drop_cols=[]):
                   </div>
                   
                   {reviewResult.fixedCode && (
-                    <GlassCard className="p-6 max-w-[110%] lg:max-w-[120%]">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-medium flex items-center gap-2">
-                          <CheckCircle size={20} className="text-green-500" />
-                          <span>Fixed Code</span>
-                        </h3>
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex items-center gap-1"
-                            onClick={() => {
-                              navigator.clipboard.writeText(reviewResult.fixedCode || '');
-                              toast.success('Fixed code copied to clipboard');
-                            }}
-                          >
-                            <Copy size={14} />
-                            <span>Copy Code</span>
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex items-center gap-1"
-                            onClick={() => {
-                              setValue('codeSnippet', reviewResult.fixedCode || '');
-                              setEditorValue(reviewResult.fixedCode || '');
-                              toast.success('Fixed code applied to editor');
-                            }}
-                          >
-                            <FileText size={14} />
-                            <span>Apply Changes</span>
-                          </Button>
+                    <div className="fixed-code-container relative overflow-visible w-full">
+                      <GlassCard className="p-6 max-w-[140%] lg:max-w-[160%] -ml-4 lg:-ml-20">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="text-xl font-medium flex items-center gap-2">
+                            <CheckCircle size={20} className="text-green-500" />
+                            <span>Fixed Code</span>
+                          </h3>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex items-center gap-1"
+                              onClick={() => {
+                                navigator.clipboard.writeText(reviewResult.fixedCode || '');
+                                toast.success('Fixed code copied to clipboard');
+                              }}
+                            >
+                              <Copy size={14} />
+                              <span>Copy Code</span>
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex items-center gap-1"
+                              onClick={() => {
+                                setValue('codeSnippet', reviewResult.fixedCode || '');
+                                setEditorValue(reviewResult.fixedCode || '');
+                                toast.success('Fixed code applied to editor');
+                              }}
+                            >
+                              <FileText size={14} />
+                              <span>Apply Changes</span>
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-muted-foreground mb-4">
-                        Here's the optimized version of your code with all suggested fixes applied:
-                      </p>
-                      <div className="border border-input rounded-md overflow-hidden bg-black dark:bg-black w-full">
-                        <div className="overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-                          <Editor
-                            value={reviewResult.fixedCode}
-                            onValueChange={() => {}}
-                            highlight={code => highlight(code, getLanguageHighlighter(language), language)}
-                            padding={16}
-                            style={{
-                              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                              fontSize: '14px',
-                              backgroundColor: 'black',
-                              color: '#ffffff',
-                              minHeight: '400px',
-                              borderRadius: '0.375rem',
-                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-                            }}
-                            className="min-h-[400px] w-full vibrant-code-editor"
-                            readOnly={true}
-                            textareaClassName="syntax-highlight-vibrant"
-                          />
+                        <p className="text-muted-foreground mb-4">
+                          Here's the optimized version of your code with all suggested fixes applied:
+                        </p>
+                        <div className="border border-input rounded-md overflow-hidden bg-black dark:bg-black w-full">
+                          <div className="fixed-code-editor-container overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                            <Editor
+                              value={reviewResult.fixedCode}
+                              onValueChange={() => {}}
+                              highlight={code => highlight(code, getLanguageHighlighter(language), language)}
+                              padding={20}
+                              style={{
+                                fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                                fontSize: '14px',
+                                backgroundColor: 'black',
+                                color: '#ffffff',
+                                minHeight: '450px',
+                                maxHeight: '600px',
+                                borderRadius: '0.375rem',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                                lineHeight: '1.6',
+                                letterSpacing: '0.2px',
+                              }}
+                              className="min-h-[450px] w-full vibrant-code-editor"
+                              readOnly={true}
+                              textareaClassName="syntax-highlight-vibrant"
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </GlassCard>
+                      </GlassCard>
+                    </div>
                   )}
                 </div>
               ) : diagramLoading ? (
