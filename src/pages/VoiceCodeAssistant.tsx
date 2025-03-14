@@ -22,6 +22,7 @@ import 'prismjs/components/prism-csharp';
 import 'prismjs/components/prism-go';
 import 'prismjs/components/prism-rust';
 import 'prismjs/themes/prism.css';
+import { Switch } from '@/components/ui/switch';
 
 // Extend the window interface to include SpeechRecognition
 declare global {
@@ -30,6 +31,12 @@ declare global {
     webkitSpeechRecognition: any;
     mozSpeechRecognition: any;
     msSpeechRecognition: any;
+  }
+  
+  // Add interfaces for speech recognition results
+  interface SpeechRecognitionResult {
+    readonly confidence: number;
+    readonly transcript: string;
   }
 }
 
@@ -63,11 +70,16 @@ const VoiceCodeAssistant = () => {
   const [codeExecutionResult, setCodeExecutionResult] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [recognitionError, setRecognitionError] = useState<string | null>(null);
+  const [autoSendVoice, setAutoSendVoice] = useState<boolean>(true);
+  const [recognitionLanguage, setRecognitionLanguage] = useState<string>('en-US');
+  const [recognitionConfidence, setRecognitionConfidence] = useState<number>(0);
   
   // Refs
   const recognitionRef = useRef<any>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+  const transcriptionBufferRef = useRef<string>('');
+  const pauseRecognitionTimeoutRef = useRef<any>(null);
   
   // Auth
   const { user, loading } = useAuth();
@@ -153,25 +165,66 @@ const VoiceCodeAssistant = () => {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = 'en-US';
+      recognition.lang = recognitionLanguage;
+      recognition.maxAlternatives = 3; // Get multiple alternatives to improve accuracy
       
       // Handle recognition results
       recognition.onresult = (event: any) => {
         let interimTranscript = '';
         let finalTranscript = '';
+        let highestConfidence = 0;
         
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
+          // Get the most confident result for this segment
+          const results = Array.from(event.results[i]).map(r => ({
+            confidence: (r as any).confidence || 0,
+            transcript: (r as any).transcript || ''
+          }));
+          
+          const mostConfidentResult = results.reduce(
+            (best, current) => (current.confidence > best.confidence ? current : best),
+            results[0]
+          );
+          
+          const transcript = mostConfidentResult.transcript;
+          const confidence = mostConfidentResult.confidence;
+          
+          // Update the highest confidence score
+          if (confidence > highestConfidence) {
+            highestConfidence = confidence;
+          }
+          
           if (event.results[i].isFinal) {
             finalTranscript += transcript;
+            // Build up the transcription buffer
+            transcriptionBufferRef.current += transcript + ' ';
           } else {
             interimTranscript += transcript;
           }
         }
         
+        // Update the recognition confidence display
+        setRecognitionConfidence(Math.round(highestConfidence * 100));
+        
+        // If we have a final transcript, update the displayed transcription
         if (finalTranscript) {
-          setTranscription(finalTranscript);
-          setTextInput(finalTranscript); // Auto-fill the text input with transcribed text
+          // Auto-sentence case and add periods to the transcription
+          const processedTranscript = processTranscription(transcriptionBufferRef.current);
+          setTranscription(processedTranscript);
+          setTextInput(processedTranscript); // Auto-fill the text input with transcribed text
+          
+          // Clear any existing pause timeout
+          if (pauseRecognitionTimeoutRef.current) {
+            clearTimeout(pauseRecognitionTimeoutRef.current);
+          }
+          
+          // Set a timeout to auto-send if the user pauses speaking
+          pauseRecognitionTimeoutRef.current = setTimeout(() => {
+            // If we're still listening and auto-send is enabled and we have text
+            if (listening && autoSendVoice && transcriptionBufferRef.current.trim()) {
+              toggleListening(); // Stop listening and will auto-send
+            }
+          }, 2500); // 2.5 second pause will trigger auto-send
         }
       };
       
@@ -195,7 +248,7 @@ const VoiceCodeAssistant = () => {
         } else if (event.error === 'not-allowed') {
           setRecognitionError('Microphone access denied. Please allow microphone access.');
         } else if (event.error === 'no-speech') {
-          setRecognitionError('No speech detected. Please try speaking again.');
+          setRecognitionError('No speech detected. Please speak more clearly or check your microphone.');
           // No speech is not a critical error, try to restart
           if (listening) {
             try {
@@ -244,6 +297,15 @@ const VoiceCodeAssistant = () => {
         }
       };
       
+      // Add some extra optimization for mobile
+      recognition.onsoundstart = () => {
+        console.log('Sound detected, listening actively...');
+      };
+      
+      recognition.onsoundend = () => {
+        console.log('Sound ended, waiting for more input...');
+      };
+      
       return recognition;
     };
     
@@ -259,8 +321,12 @@ const VoiceCodeAssistant = () => {
           console.error('Error stopping recognition during cleanup', e);
         }
       }
+      // Clear any existing pause timeout
+      if (pauseRecognitionTimeoutRef.current) {
+        clearTimeout(pauseRecognitionTimeoutRef.current);
+      }
     };
-  }, [recognitionSupported, listening]);
+  }, [recognitionSupported, listening, recognitionLanguage, autoSendVoice]);
   
   // Scroll to bottom of conversation when new messages are added
   useEffect(() => {
@@ -329,18 +395,24 @@ const VoiceCodeAssistant = () => {
         console.error('Error stopping recognition', e);
       }
       setListening(false);
-      // Submit the transcribed text automatically when stopping listening
-      if (transcription.trim()) {
-        handleUserInput(transcription.trim());
-        setTranscription('');
-        setTextInput('');
+      
+      // Submit the transcribed text automatically if it exists and auto-send is enabled
+      if (transcriptionBufferRef.current.trim() && autoSendVoice) {
+        handleUserInput(processTranscription(transcriptionBufferRef.current.trim()));
       }
+      
+      // Clear the transcription buffer
+      transcriptionBufferRef.current = '';
+      setTranscription('');
     } else {
-      setTextInput(''); // Clear the text input when starting to listen
+      // Clear both input and transcription when starting
+      setTextInput('');
+      setTranscription('');
+      transcriptionBufferRef.current = '';
+      
       try {
         recognitionRef.current.start();
         setListening(true);
-        setTranscription('');
         toast.success('Listening for your voice command...');
       } catch (e) {
         console.error('Error starting recognition', e);
@@ -348,10 +420,11 @@ const VoiceCodeAssistant = () => {
         
         // Try recreating the recognition instance
         try {
-          recognitionRef.current = (window.SpeechRecognition || window.webkitSpeechRecognition)();
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          recognitionRef.current = new SpeechRecognition();
           recognitionRef.current.continuous = true;
           recognitionRef.current.interimResults = true;
-          recognitionRef.current.lang = 'en-US';
+          recognitionRef.current.lang = recognitionLanguage;
           recognitionRef.current.start();
           setListening(true);
         } catch (e2) {
@@ -497,6 +570,65 @@ const VoiceCodeAssistant = () => {
       .catch(() => toast.error('Failed to copy code'));
   };
   
+  // Process the transcription to improve readability
+  const processTranscription = (text: string): string => {
+    if (!text) return '';
+    
+    // Normalize whitespace
+    let processed = text.trim().replace(/\s+/g, ' ');
+    
+    // Capitalize first letter of sentences
+    processed = processed.replace(/(^\s*\w|[.!?]\s*\w)/g, (match) => match.toUpperCase());
+    
+    // Add periods at the end if missing
+    if (!/[.!?]$/.test(processed)) {
+      processed += '.';
+    }
+    
+    // Fix common programming terms
+    const programmingCorrections: Record<string, string> = {
+      'javascript': 'JavaScript',
+      'typescript': 'TypeScript',
+      'python': 'Python',
+      'java': 'Java',
+      'c sharp': 'C#',
+      'c plus plus': 'C++',
+      'react': 'React',
+      'angular': 'Angular',
+      'node js': 'Node.js',
+      'node': 'Node.js',
+      'vs code': 'VS Code',
+      'function': 'function',
+      'class': 'class',
+      'const': 'const',
+      'let': 'let',
+      'var': 'var',
+      'four loop': 'for loop',
+      'before loop': 'for loop',
+      'wild loop': 'while loop',
+      'why loop': 'while loop',
+      'if statement': 'if statement',
+      'arrow function': 'arrow function',
+      'i f': 'if',
+      'ells': 'else',
+      'a sink': 'async',
+      'asynchronous': 'async',
+      'a weight': 'await',
+      'new function': 'function',
+      'consul log': 'console.log',
+      'console dot log': 'console.log',
+      'council log': 'console.log',
+    };
+    
+    // Replace common programming terms with correct casing
+    Object.entries(programmingCorrections).forEach(([incorrect, correct]) => {
+      const regex = new RegExp(`\\b${incorrect}\\b`, 'gi');
+      processed = processed.replace(regex, correct);
+    });
+    
+    return processed;
+  };
+  
   // If loading or user not authenticated
   if (loading) {
     return (
@@ -540,10 +672,18 @@ const VoiceCodeAssistant = () => {
                   {/* Status displays */}
                   {listening && (
                     <div>
-                      <p className="text-sm font-medium mb-2">Voice Detected:</p>
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm font-medium mb-2">Voice Detected:</p>
+                        <Badge variant={recognitionConfidence > 70 ? "default" : recognitionConfidence > 40 ? "outline" : "destructive"}>
+                          Confidence: {recognitionConfidence}%
+                        </Badge>
+                      </div>
                       <div className="relative">
                         <div className="h-6 rounded-full bg-primary/10 overflow-hidden flex items-center">
-                          <div className="bg-primary h-full" style={{ width: '60%' }}>
+                          <div 
+                            className="bg-primary h-full transition-all duration-300" 
+                            style={{ width: `${Math.min(recognitionConfidence, 100)}%` }}
+                          >
                             <div className="absolute voice-wave top-0 left-0 w-full h-full">
                               <span></span>
                               <span></span>
@@ -554,7 +694,7 @@ const VoiceCodeAssistant = () => {
                           </div>
                         </div>
                       </div>
-                      <p className="mt-2 text-xs italic text-muted-foreground">
+                      <p className="mt-2 text-sm italic text-muted-foreground">
                         {transcription || "Listening for your voice..."}
                       </p>
                     </div>
@@ -576,8 +716,56 @@ const VoiceCodeAssistant = () => {
                     </Alert>
                   )}
                   
-                  {/* Code Settings */}
+                  {/* Voice recognition settings */}
                   <div className="mt-4 space-y-4 border-t border-border pt-4">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <label className="text-sm font-medium block">Recognition Language</label>
+                      </div>
+                      <select 
+                        className="w-full px-3 py-2 bg-background border border-input rounded-md"
+                        value={recognitionLanguage}
+                        onChange={(e) => setRecognitionLanguage(e.target.value)}
+                        disabled={listening}
+                      >
+                        <option value="en-US">English (US)</option>
+                        <option value="en-GB">English (UK)</option>
+                        <option value="en-AU">English (Australia)</option>
+                        <option value="en-IN">English (India)</option>
+                        <option value="es-ES">Spanish</option>
+                        <option value="fr-FR">French</option>
+                        <option value="de-DE">German</option>
+                        <option value="zh-CN">Chinese (Mandarin)</option>
+                        <option value="ja-JP">Japanese</option>
+                        <option value="ko-KR">Korean</option>
+                        <option value="ru-RU">Russian</option>
+                        <option value="pt-BR">Portuguese (Brazil)</option>
+                        <option value="it-IT">Italian</option>
+                        <option value="nl-NL">Dutch</option>
+                        <option value="hi-IN">Hindi</option>
+                      </select>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <span>Auto-send on pause</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-4 w-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="max-w-xs">When enabled, your voice input will be automatically sent after you pause speaking for 2.5 seconds</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </label>
+                      <Switch
+                        checked={autoSendVoice}
+                        onCheckedChange={setAutoSendVoice}
+                      />
+                    </div>
+                    
                     <div>
                       <div className="flex justify-between mb-1">
                         <label className="text-sm font-medium block">Code Theme</label>
@@ -789,7 +977,12 @@ const VoiceCodeAssistant = () => {
                     </Tooltip>
                   </TooltipProvider>
                   
-                  <Button type="submit" size="sm" disabled={isProcessing || !textInput.trim()}>
+                  <Button 
+                    type="submit" 
+                    size="sm" 
+                    disabled={isProcessing || !textInput.trim()}
+                    className="px-4"
+                  >
                     Send
                   </Button>
                 </form>
