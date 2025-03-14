@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Mic, MicOff, Play, Copy, Volume2, VolumeX, Code, Loader2, Terminal, Sparkles, Info } from 'lucide-react';
+import { Copy, Play, Code, Loader2, Terminal, Sparkles, Info } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
@@ -22,23 +22,6 @@ import 'prismjs/components/prism-csharp';
 import 'prismjs/components/prism-go';
 import 'prismjs/components/prism-rust';
 import 'prismjs/themes/prism.css';
-import { Switch } from '@/components/ui/switch';
-
-// Extend the window interface to include SpeechRecognition
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-    mozSpeechRecognition: any;
-    msSpeechRecognition: any;
-  }
-  
-  // Add interfaces for speech recognition results
-  interface SpeechRecognitionResult {
-    readonly confidence: number;
-    readonly transcript: string;
-  }
-}
 
 // Define interfaces for our component
 interface ConversationMessage {
@@ -53,99 +36,26 @@ interface CodeSnippet {
   language: string;
 }
 
-const VoiceCodeAssistant = () => {
+const ChatAssistant = () => {
   // State management
-  const [listening, setListening] = useState<boolean>(false);
-  const [speaking, setSpeaking] = useState<boolean>(false);
-  const [transcription, setTranscription] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [activeCodeTab, setActiveCodeTab] = useState<string>('preview');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('javascript');
-  const [recognitionSupported, setRecognitionSupported] = useState<boolean>(true);
   const [codeTheme, setCodeTheme] = useState<string>('dark');
   const [textInput, setTextInput] = useState<string>('');
   const [showExplainPanel, setShowExplainPanel] = useState<boolean>(false);
   const [currentExplainCode, setCurrentExplainCode] = useState<string>('');
   const [codeExecutionResult, setCodeExecutionResult] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
-  const [recognitionError, setRecognitionError] = useState<string | null>(null);
-  const [autoSendVoice, setAutoSendVoice] = useState<boolean>(true);
-  const [recognitionLanguage, setRecognitionLanguage] = useState<string>('en-US');
-  const [recognitionConfidence, setRecognitionConfidence] = useState<number>(0);
   
   // Refs
-  const recognitionRef = useRef<any>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
-  const transcriptionBufferRef = useRef<string>('');
-  const pauseRecognitionTimeoutRef = useRef<any>(null);
   
   // Auth
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  
-  // Add animation styles for voice wave
-  useEffect(() => {
-    const styleElement = document.createElement('style');
-    styleElement.innerHTML = `
-      .voice-wave {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-      }
-      
-      .voice-wave span {
-        display: block;
-        width: 3px;
-        height: 15px;
-        background-color: currentColor;
-        border-radius: 999px;
-        animation: wave 1s infinite ease-in-out;
-      }
-      
-      .voice-wave span:nth-child(2) {
-        animation-delay: 0.1s;
-      }
-      
-      .voice-wave span:nth-child(3) {
-        animation-delay: 0.2s;
-      }
-      
-      .voice-wave span:nth-child(4) {
-        animation-delay: 0.3s;
-      }
-      
-      .voice-wave span:nth-child(5) {
-        animation-delay: 0.4s;
-      }
-      
-      @keyframes wave {
-        0%, 100% {
-          height: 5px;
-        }
-        50% {
-          height: 15px;
-        }
-      }
-    `;
-    document.head.appendChild(styleElement);
-    
-    return () => {
-      document.head.removeChild(styleElement);
-    };
-  }, []);
-  
-  // Check if speech recognition and synthesis are supported
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || 
-                              window.mozSpeechRecognition || window.msSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      setRecognitionSupported(false);
-      toast.error('Speech recognition is not supported in your browser');
-    }
-  }, []);
   
   // Check authentication
   useEffect(() => {
@@ -154,179 +64,6 @@ const VoiceCodeAssistant = () => {
       navigate('/login');
     }
   }, [user, loading, navigate]);
-  
-  // Initialize speech recognition
-  useEffect(() => {
-    if (!recognitionSupported) return;
-    
-    // Define a function to create and configure a new recognition instance
-    const createRecognitionInstance = () => {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = recognitionLanguage;
-      recognition.maxAlternatives = 3; // Get multiple alternatives to improve accuracy
-      
-      // Handle recognition results
-      recognition.onresult = (event: any) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-        let highestConfidence = 0;
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          // Get the most confident result for this segment
-          const results = Array.from(event.results[i]).map(r => ({
-            confidence: (r as any).confidence || 0,
-            transcript: (r as any).transcript || ''
-          }));
-          
-          const mostConfidentResult = results.reduce(
-            (best, current) => (current.confidence > best.confidence ? current : best),
-            results[0]
-          );
-          
-          const transcript = mostConfidentResult.transcript;
-          const confidence = mostConfidentResult.confidence;
-          
-          // Update the highest confidence score
-          if (confidence > highestConfidence) {
-            highestConfidence = confidence;
-          }
-          
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-            // Build up the transcription buffer
-            transcriptionBufferRef.current += transcript + ' ';
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-        
-        // Update the recognition confidence display
-        setRecognitionConfidence(Math.round(highestConfidence * 100));
-        
-        // If we have a final transcript, update the displayed transcription
-        if (finalTranscript) {
-          // Auto-sentence case and add periods to the transcription
-          const processedTranscript = processTranscription(transcriptionBufferRef.current);
-          setTranscription(processedTranscript);
-          setTextInput(processedTranscript); // Auto-fill the text input with transcribed text
-          
-          // Clear any existing pause timeout
-          if (pauseRecognitionTimeoutRef.current) {
-            clearTimeout(pauseRecognitionTimeoutRef.current);
-          }
-          
-          // Set a timeout to auto-send if the user pauses speaking
-          pauseRecognitionTimeoutRef.current = setTimeout(() => {
-            // If we're still listening and auto-send is enabled and we have text
-            if (listening && autoSendVoice && transcriptionBufferRef.current.trim()) {
-              toggleListening(); // Stop listening and will auto-send
-            }
-          }, 2500); // 2.5 second pause will trigger auto-send
-        }
-      };
-      
-      // Handle errors
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error', event.error);
-        
-        // Set a user-friendly error message based on the type of error
-        if (event.error === 'aborted') {
-          setRecognitionError('Recognition was aborted. Creating a new session...');
-          // Create a new instance and start it after a short delay
-          setTimeout(() => {
-            recognitionRef.current = createRecognitionInstance();
-            if (listening) {
-              recognitionRef.current.start();
-              setRecognitionError(null);
-            }
-          }, 300);
-        } else if (event.error === 'network') {
-          setRecognitionError('Network error occurred. Check your connection and try again.');
-        } else if (event.error === 'not-allowed') {
-          setRecognitionError('Microphone access denied. Please allow microphone access.');
-        } else if (event.error === 'no-speech') {
-          setRecognitionError('No speech detected. Please speak more clearly or check your microphone.');
-          // No speech is not a critical error, try to restart
-          if (listening) {
-            try {
-              recognition.stop();
-              setTimeout(() => {
-                recognition.start();
-                setRecognitionError(null);
-              }, 100);
-            } catch (e) {
-              console.error('Failed to restart recognition after no-speech error', e);
-            }
-          }
-        } else {
-          setRecognitionError(`Error: ${event.error}. Please try again.`);
-        }
-        
-        // Only stop listening for critical errors
-        if (['not-allowed', 'network'].includes(event.error)) {
-          setListening(false);
-        }
-      };
-      
-      // Handle end of recognition
-      recognition.onend = () => {
-        console.log('Recognition ended, listening state:', listening);
-        if (listening) {
-          // If we're still meant to be listening, restart after a short delay
-          setTimeout(() => {
-            try {
-              recognition.start();
-              console.log('Recognition restarted');
-            } catch (e) {
-              console.error('Failed to restart recognition', e);
-              // If restart fails, create a new instance
-              recognitionRef.current = createRecognitionInstance();
-              try {
-                recognitionRef.current.start();
-                console.log('New recognition instance started');
-              } catch (e2) {
-                console.error('Failed to start new recognition instance', e2);
-                setListening(false);
-                setRecognitionError('Failed to restart voice recognition. Please try again.');
-              }
-            }
-          }, 300);
-        }
-      };
-      
-      // Add some extra optimization for mobile
-      recognition.onsoundstart = () => {
-        console.log('Sound detected, listening actively...');
-      };
-      
-      recognition.onsoundend = () => {
-        console.log('Sound ended, waiting for more input...');
-      };
-      
-      return recognition;
-    };
-    
-    // Create the initial recognition instance
-    recognitionRef.current = createRecognitionInstance();
-    
-    return () => {
-      // Clean up the recognition instance when the component unmounts
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-          console.error('Error stopping recognition during cleanup', e);
-        }
-      }
-      // Clear any existing pause timeout
-      if (pauseRecognitionTimeoutRef.current) {
-        clearTimeout(pauseRecognitionTimeoutRef.current);
-      }
-    };
-  }, [recognitionSupported, listening, recognitionLanguage, autoSendVoice]);
   
   // Scroll to bottom of conversation when new messages are added
   useEffect(() => {
@@ -379,63 +116,7 @@ const VoiceCodeAssistant = () => {
     setShowExplainPanel(true);
   };
   
-  // Toggle speech recognition
-  const toggleListening = () => {
-    if (!recognitionSupported) {
-      toast.error('Speech recognition is not supported in your browser');
-      return;
-    }
-    
-    setRecognitionError(null);
-    
-    if (listening) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        console.error('Error stopping recognition', e);
-      }
-      setListening(false);
-      
-      // Submit the transcribed text automatically if it exists and auto-send is enabled
-      if (transcriptionBufferRef.current.trim() && autoSendVoice) {
-        handleUserInput(processTranscription(transcriptionBufferRef.current.trim()));
-      }
-      
-      // Clear the transcription buffer
-      transcriptionBufferRef.current = '';
-      setTranscription('');
-    } else {
-      // Clear both input and transcription when starting
-      setTextInput('');
-      setTranscription('');
-      transcriptionBufferRef.current = '';
-      
-      try {
-        recognitionRef.current.start();
-        setListening(true);
-        toast.success('Listening for your voice command...');
-      } catch (e) {
-        console.error('Error starting recognition', e);
-        toast.error('Failed to start voice recognition. Please try again.');
-        
-        // Try recreating the recognition instance
-        try {
-          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-          recognitionRef.current = new SpeechRecognition();
-          recognitionRef.current.continuous = true;
-          recognitionRef.current.interimResults = true;
-          recognitionRef.current.lang = recognitionLanguage;
-          recognitionRef.current.start();
-          setListening(true);
-        } catch (e2) {
-          console.error('Failed to recreate recognition instance', e2);
-          toast.error('Voice recognition initialization failed. Please refresh the page.');
-        }
-      }
-    }
-  };
-  
-  // Handle user input (either from speech or manual entry)
+  // Handle user input
   const handleUserInput = async (input: string) => {
     if (!input.trim()) return;
     
@@ -515,7 +196,7 @@ const VoiceCodeAssistant = () => {
       setConversation(prev => [...prev, assistantMessage]);
       
     } catch (error) {
-      console.error('Error processing voice command:', error);
+      console.error('Error processing request:', error);
       toast.error('Error processing your request. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -560,7 +241,6 @@ const VoiceCodeAssistant = () => {
     
     handleUserInput(textInput);
     setTextInput('');
-    setTranscription(''); // Also clear transcription if there was any
   };
   
   // Copy code to clipboard
@@ -568,65 +248,6 @@ const VoiceCodeAssistant = () => {
     navigator.clipboard.writeText(code)
       .then(() => toast.success('Code copied to clipboard'))
       .catch(() => toast.error('Failed to copy code'));
-  };
-  
-  // Process the transcription to improve readability
-  const processTranscription = (text: string): string => {
-    if (!text) return '';
-    
-    // Normalize whitespace
-    let processed = text.trim().replace(/\s+/g, ' ');
-    
-    // Capitalize first letter of sentences
-    processed = processed.replace(/(^\s*\w|[.!?]\s*\w)/g, (match) => match.toUpperCase());
-    
-    // Add periods at the end if missing
-    if (!/[.!?]$/.test(processed)) {
-      processed += '.';
-    }
-    
-    // Fix common programming terms
-    const programmingCorrections: Record<string, string> = {
-      'javascript': 'JavaScript',
-      'typescript': 'TypeScript',
-      'python': 'Python',
-      'java': 'Java',
-      'c sharp': 'C#',
-      'c plus plus': 'C++',
-      'react': 'React',
-      'angular': 'Angular',
-      'node js': 'Node.js',
-      'node': 'Node.js',
-      'vs code': 'VS Code',
-      'function': 'function',
-      'class': 'class',
-      'const': 'const',
-      'let': 'let',
-      'var': 'var',
-      'four loop': 'for loop',
-      'before loop': 'for loop',
-      'wild loop': 'while loop',
-      'why loop': 'while loop',
-      'if statement': 'if statement',
-      'arrow function': 'arrow function',
-      'i f': 'if',
-      'ells': 'else',
-      'a sink': 'async',
-      'asynchronous': 'async',
-      'a weight': 'await',
-      'new function': 'function',
-      'consul log': 'console.log',
-      'console dot log': 'console.log',
-      'council log': 'console.log',
-    };
-    
-    // Replace common programming terms with correct casing
-    Object.entries(programmingCorrections).forEach(([incorrect, correct]) => {
-      const regex = new RegExp(`\\b${incorrect}\\b`, 'gi');
-      processed = processed.replace(regex, correct);
-    });
-    
-    return processed;
   };
   
   // If loading or user not authenticated
@@ -650,11 +271,11 @@ const VoiceCodeAssistant = () => {
         <AnimatedContainer animation="fade" className="mb-8 text-center">
           <h1 className="text-3xl md:text-4xl font-bold mb-4 flex items-center justify-center gap-3">
             <Sparkles className="text-primary h-8 w-8" />
-            Code Assistant
+            Code Chat Assistant
             <Sparkles className="text-primary h-8 w-8" />
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Your AI programming assistant. Ask coding questions and receive interactive code examples with explanations.
+            Your AI programming assistant. Chat to get coding help and interactive code examples with explanations.
           </p>
         </AnimatedContainer>
         
@@ -665,107 +286,12 @@ const VoiceCodeAssistant = () => {
               <GlassCard className="p-6 mb-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Terminal className="h-5 w-5" />
-                  <span>Voice Input</span>
+                  <span>Chat Settings</span>
                 </h3>
                 
                 <div className="flex flex-col gap-4">
-                  {/* Status displays */}
-                  {listening && (
-                    <div>
-                      <div className="flex justify-between items-center">
-                        <p className="text-sm font-medium mb-2">Voice Detected:</p>
-                        <Badge variant={recognitionConfidence > 70 ? "default" : recognitionConfidence > 40 ? "outline" : "destructive"}>
-                          Confidence: {recognitionConfidence}%
-                        </Badge>
-                      </div>
-                      <div className="relative">
-                        <div className="h-6 rounded-full bg-primary/10 overflow-hidden flex items-center">
-                          <div 
-                            className="bg-primary h-full transition-all duration-300" 
-                            style={{ width: `${Math.min(recognitionConfidence, 100)}%` }}
-                          >
-                            <div className="absolute voice-wave top-0 left-0 w-full h-full">
-                              <span></span>
-                              <span></span>
-                              <span></span>
-                              <span></span>
-                              <span></span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-sm italic text-muted-foreground">
-                        {transcription || "Listening for your voice..."}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {recognitionError && (
-                    <Alert variant="destructive" className="mt-2">
-                      <AlertDescription>
-                        {recognitionError}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  {!recognitionSupported && (
-                    <Alert variant="destructive" className="mt-4">
-                      <AlertDescription>
-                        Speech recognition is not supported in your browser. Try Chrome or Edge for full functionality.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  {/* Voice recognition settings */}
-                  <div className="mt-4 space-y-4 border-t border-border pt-4">
-                    <div>
-                      <div className="flex justify-between mb-1">
-                        <label className="text-sm font-medium block">Recognition Language</label>
-                      </div>
-                      <select 
-                        className="w-full px-3 py-2 bg-background border border-input rounded-md"
-                        value={recognitionLanguage}
-                        onChange={(e) => setRecognitionLanguage(e.target.value)}
-                        disabled={listening}
-                      >
-                        <option value="en-US">English (US)</option>
-                        <option value="en-GB">English (UK)</option>
-                        <option value="en-AU">English (Australia)</option>
-                        <option value="en-IN">English (India)</option>
-                        <option value="es-ES">Spanish</option>
-                        <option value="fr-FR">French</option>
-                        <option value="de-DE">German</option>
-                        <option value="zh-CN">Chinese (Mandarin)</option>
-                        <option value="ja-JP">Japanese</option>
-                        <option value="ko-KR">Korean</option>
-                        <option value="ru-RU">Russian</option>
-                        <option value="pt-BR">Portuguese (Brazil)</option>
-                        <option value="it-IT">Italian</option>
-                        <option value="nl-NL">Dutch</option>
-                        <option value="hi-IN">Hindi</option>
-                      </select>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium flex items-center gap-2">
-                        <span>Auto-send on pause</span>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Info className="h-4 w-4 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="max-w-xs">When enabled, your voice input will be automatically sent after you pause speaking for 2.5 seconds</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </label>
-                      <Switch
-                        checked={autoSendVoice}
-                        onCheckedChange={setAutoSendVoice}
-                      />
-                    </div>
-                    
+                  {/* Code Settings */}
+                  <div className="space-y-4">
                     <div>
                       <div className="flex justify-between mb-1">
                         <label className="text-sm font-medium block">Code Theme</label>
@@ -815,7 +341,7 @@ const VoiceCodeAssistant = () => {
                 
                 <div className="space-y-4 text-sm">
                   <div className="pb-2 border-b border-border">
-                    <h4 className="font-medium mb-1">Example Commands:</h4>
+                    <h4 className="font-medium mb-1">Example Questions:</h4>
                     <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
                       <li>"Explain async/await in JavaScript"</li>
                       <li>"How do I implement a binary search tree in Python?"</li>
@@ -883,7 +409,7 @@ const VoiceCodeAssistant = () => {
                       <Terminal className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
                       <h3 className="text-lg font-medium mb-2">No conversation yet</h3>
                       <p className="text-muted-foreground max-w-md">
-                        Type a message or use voice recording to ask a programming question
+                        Type a message to ask a programming question
                       </p>
                     </div>
                   ) : (
@@ -951,31 +477,6 @@ const VoiceCodeAssistant = () => {
                     ref={textInputRef}
                     disabled={isProcessing}
                   />
-                  
-                  {/* Voice recording button next to text input, similar to ChatGPT */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          type="button"
-                          size="icon" 
-                          variant={listening ? "destructive" : "ghost"}
-                          className={`rounded-full ${listening ? 'animate-pulse' : ''}`}
-                          onClick={toggleListening}
-                          disabled={!recognitionSupported || isProcessing}
-                        >
-                          {listening ? (
-                            <MicOff className="h-5 w-5" />
-                          ) : (
-                            <Mic className="h-5 w-5" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{listening ? "Stop listening" : "Start voice recording"}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                   
                   <Button 
                     type="submit" 
@@ -1227,4 +728,4 @@ const explainCodeLine = (line: string, lineNumber: number): string => {
   return "This is code that contributes to the program's functionality.";
 };
 
-export default VoiceCodeAssistant; 
+export default ChatAssistant; 
