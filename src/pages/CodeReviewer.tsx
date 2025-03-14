@@ -51,6 +51,7 @@ interface FormData {
   reviewType: 'bugs' | 'performance' | 'style' | 'comprehensive';
   includeVisualization: boolean;
   diagramType?: 'flowchart' | 'class' | 'er' | 'sequence';
+  errorDescription?: string;
 }
 
 interface CodeIssue {
@@ -272,7 +273,8 @@ const CodeReviewer = () => {
         data.codeSnippet, 
         data.language, 
         data.reviewType,
-        true
+        true,
+        data.errorDescription
       );
       
       setReviewResult(result);
@@ -774,6 +776,22 @@ def quickProcess(file, drop_cols=[]):
                         <SelectItem value="rust">Rust</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="errorDescription" className="flex items-center gap-2">
+                      <AlertCircle size={16} className="text-yellow-500" />
+                      <span>Error Description (Optional)</span>
+                    </Label>
+                    <Textarea
+                      id="errorDescription"
+                      placeholder="Describe any errors or issues your code is experiencing (e.g., 'TypeError: Cannot read property of undefined', 'Performance lag when processing large arrays', etc.)"
+                      className="mt-1 min-h-[80px]"
+                      {...register('errorDescription')}
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Providing context about specific errors will help the AI deliver more accurate fixes.
+                    </p>
                   </div>
                   
                   <div>

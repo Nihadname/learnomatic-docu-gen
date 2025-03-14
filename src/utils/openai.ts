@@ -409,7 +409,8 @@ class OpenAIService {
     codeSnippet: string,
     language: string,
     reviewType: 'bugs' | 'performance' | 'style' | 'comprehensive',
-    generateFixedCode: boolean = false
+    generateFixedCode: boolean = false,
+    errorDescription?: string
   ): Promise<any> {
     // Try to ensure we have an API key
     const apiKey = await this.ensureApiKey();
@@ -441,11 +442,18 @@ class OpenAIService {
         }
       ],
       "improvements": ["List of general improvement suggestions"],
-      "score": <numerical score from 0-100>${generateFixedCode ? ',\n      "fixedCode": "The complete fixed code with all issues resolved"' : ''}
+      "score": <numerical score from 0-100>
     }
     
     Make sure every identified issue has an accurate line number reference and a specific, actionable suggestion for fixing it.
     Keep explanations clear and educational so the developer can learn from your feedback.${generateFixedCode ? '\n\nImportantly, since you are asked to provide the complete fixed code, make sure to apply all the suggested fixes and improvements to create a cleaned up, optimized version of the original code in the "fixedCode" field.' : ''}`;
+
+    let userContent = `Review this ${language} code with a focus on ${reviewType}:\n\n${codeSnippet}`;
+    
+    // Add error description if provided
+    if (errorDescription && errorDescription.trim()) {
+      userContent += `\n\nAdditional context - The code is experiencing the following issues or errors:\n${errorDescription.trim()}`;
+    }
 
     const options: OpenAIRequestOptions = {
       model: "gpt-4o",
@@ -456,7 +464,7 @@ class OpenAIService {
         },
         {
           role: "user",
-          content: `Review this ${language} code with a focus on ${reviewType}:\n\n${codeSnippet}`
+          content: userContent
         }
       ],
       temperature: 0.3,
