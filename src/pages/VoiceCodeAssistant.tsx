@@ -62,6 +62,7 @@ const VoiceCodeAssistant = () => {
   const [currentExplainCode, setCurrentExplainCode] = useState<string>('');
   const [codeExecutionResult, setCodeExecutionResult] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
+  const [recognitionError, setRecognitionError] = useState<string | null>(null);
   
   // Refs
   const recognitionRef = useRef<any>(null);
@@ -146,50 +147,117 @@ const VoiceCodeAssistant = () => {
   useEffect(() => {
     if (!recognitionSupported) return;
     
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionRef.current = new SpeechRecognition();
-    recognitionRef.current.continuous = true;
-    recognitionRef.current.interimResults = true;
-    recognitionRef.current.lang = 'en-US';
-    
-    // Handle recognition results
-    recognitionRef.current.onresult = (event: any) => {
-      let interimTranscript = '';
-      let finalTranscript = '';
+    // Define a function to create and configure a new recognition instance
+    const createRecognitionInstance = () => {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
       
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
+      // Handle recognition results
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
         }
-      }
+        
+        if (finalTranscript) {
+          setTranscription(finalTranscript);
+          setTextInput(finalTranscript); // Auto-fill the text input with transcribed text
+        }
+      };
       
-      if (finalTranscript) {
-        setTranscription(finalTranscript);
-        setTextInput(finalTranscript); // Auto-fill the text input with transcribed text
-      }
+      // Handle errors
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        
+        // Set a user-friendly error message based on the type of error
+        if (event.error === 'aborted') {
+          setRecognitionError('Recognition was aborted. Creating a new session...');
+          // Create a new instance and start it after a short delay
+          setTimeout(() => {
+            recognitionRef.current = createRecognitionInstance();
+            if (listening) {
+              recognitionRef.current.start();
+              setRecognitionError(null);
+            }
+          }, 300);
+        } else if (event.error === 'network') {
+          setRecognitionError('Network error occurred. Check your connection and try again.');
+        } else if (event.error === 'not-allowed') {
+          setRecognitionError('Microphone access denied. Please allow microphone access.');
+        } else if (event.error === 'no-speech') {
+          setRecognitionError('No speech detected. Please try speaking again.');
+          // No speech is not a critical error, try to restart
+          if (listening) {
+            try {
+              recognition.stop();
+              setTimeout(() => {
+                recognition.start();
+                setRecognitionError(null);
+              }, 100);
+            } catch (e) {
+              console.error('Failed to restart recognition after no-speech error', e);
+            }
+          }
+        } else {
+          setRecognitionError(`Error: ${event.error}. Please try again.`);
+        }
+        
+        // Only stop listening for critical errors
+        if (['not-allowed', 'network'].includes(event.error)) {
+          setListening(false);
+        }
+      };
+      
+      // Handle end of recognition
+      recognition.onend = () => {
+        console.log('Recognition ended, listening state:', listening);
+        if (listening) {
+          // If we're still meant to be listening, restart after a short delay
+          setTimeout(() => {
+            try {
+              recognition.start();
+              console.log('Recognition restarted');
+            } catch (e) {
+              console.error('Failed to restart recognition', e);
+              // If restart fails, create a new instance
+              recognitionRef.current = createRecognitionInstance();
+              try {
+                recognitionRef.current.start();
+                console.log('New recognition instance started');
+              } catch (e2) {
+                console.error('Failed to start new recognition instance', e2);
+                setListening(false);
+                setRecognitionError('Failed to restart voice recognition. Please try again.');
+              }
+            }
+          }, 300);
+        }
+      };
+      
+      return recognition;
     };
     
-    // Handle errors
-    recognitionRef.current.onerror = (event: any) => {
-      console.error('Speech recognition error', event.error);
-      toast.error(`Speech recognition error: ${event.error}`);
-      setListening(false);
-    };
-    
-    // Handle end of recognition
-    recognitionRef.current.onend = () => {
-      if (listening) {
-        // If we're still meant to be listening, restart
-        recognitionRef.current.start();
-      }
-    };
+    // Create the initial recognition instance
+    recognitionRef.current = createRecognitionInstance();
     
     return () => {
+      // Clean up the recognition instance when the component unmounts
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error('Error stopping recognition during cleanup', e);
+        }
       }
     };
   }, [recognitionSupported, listening]);
@@ -252,8 +320,14 @@ const VoiceCodeAssistant = () => {
       return;
     }
     
+    setRecognitionError(null);
+    
     if (listening) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.error('Error stopping recognition', e);
+      }
       setListening(false);
       // Submit the transcribed text automatically when stopping listening
       if (transcription.trim()) {
@@ -263,9 +337,28 @@ const VoiceCodeAssistant = () => {
       }
     } else {
       setTextInput(''); // Clear the text input when starting to listen
-      recognitionRef.current.start();
-      setListening(true);
-      setTranscription('');
+      try {
+        recognitionRef.current.start();
+        setListening(true);
+        setTranscription('');
+        toast.success('Listening for your voice command...');
+      } catch (e) {
+        console.error('Error starting recognition', e);
+        toast.error('Failed to start voice recognition. Please try again.');
+        
+        // Try recreating the recognition instance
+        try {
+          recognitionRef.current = (window.SpeechRecognition || window.webkitSpeechRecognition)();
+          recognitionRef.current.continuous = true;
+          recognitionRef.current.interimResults = true;
+          recognitionRef.current.lang = 'en-US';
+          recognitionRef.current.start();
+          setListening(true);
+        } catch (e2) {
+          console.error('Failed to recreate recognition instance', e2);
+          toast.error('Voice recognition initialization failed. Please refresh the page.');
+        }
+      }
     }
   };
   
@@ -444,28 +537,9 @@ const VoiceCodeAssistant = () => {
                 </h3>
                 
                 <div className="flex flex-col gap-4">
-                  <Button 
-                    size="lg"
-                    className={`relative w-full gap-2 ${listening ? 'bg-destructive hover:bg-destructive/90' : ''}`}
-                    onClick={toggleListening}
-                    disabled={!recognitionSupported || isProcessing}
-                  >
-                    {listening ? (
-                      <>
-                        <div className="absolute inset-0 bg-destructive/10 rounded-md animate-pulse"></div>
-                        <MicOff className="h-5 w-5" />
-                        <span>Stop Recording & Send</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mic className="h-5 w-5" />
-                        <span>Start Voice Recording</span>
-                      </>
-                    )}
-                  </Button>
-                  
+                  {/* Status displays */}
                   {listening && (
-                    <div className="mt-4">
+                    <div>
                       <p className="text-sm font-medium mb-2">Voice Detected:</p>
                       <div className="relative">
                         <div className="h-6 rounded-full bg-primary/10 overflow-hidden flex items-center">
@@ -484,6 +558,14 @@ const VoiceCodeAssistant = () => {
                         {transcription || "Listening for your voice..."}
                       </p>
                     </div>
+                  )}
+                  
+                  {recognitionError && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertDescription>
+                        {recognitionError}
+                      </AlertDescription>
+                    </Alert>
                   )}
                   
                   {!recognitionSupported && (
@@ -679,8 +761,34 @@ const VoiceCodeAssistant = () => {
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
                     ref={textInputRef}
-                    disabled={isProcessing || listening}
+                    disabled={isProcessing}
                   />
+                  
+                  {/* Voice recording button next to text input, similar to ChatGPT */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          type="button"
+                          size="icon" 
+                          variant={listening ? "destructive" : "ghost"}
+                          className={`rounded-full ${listening ? 'animate-pulse' : ''}`}
+                          onClick={toggleListening}
+                          disabled={!recognitionSupported || isProcessing}
+                        >
+                          {listening ? (
+                            <MicOff className="h-5 w-5" />
+                          ) : (
+                            <Mic className="h-5 w-5" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{listening ? "Stop listening" : "Start voice recording"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
                   <Button type="submit" size="sm" disabled={isProcessing || !textInput.trim()}>
                     Send
                   </Button>
