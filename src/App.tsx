@@ -8,12 +8,12 @@ import Index from "./pages/Index";
 import ConceptExplainer from "./pages/ConceptExplainer";
 import DocumentationGenerator from "./pages/DocumentationGenerator";
 import CodeReviewer from "./pages/CodeReviewer";
-import VoiceCodeAssistant from "./pages/VoiceCodeAssistant";
+import VoiceCodeAssistant from "./pages/ChatCodeAssistant";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
-import AuthCallback from "./pages/AuthCallback";
+
 
 
 const queryClient = new QueryClient();
@@ -34,7 +34,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/auth-callback" element={<AuthCallback />} />
+           
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
