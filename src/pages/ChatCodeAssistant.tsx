@@ -51,11 +51,14 @@ const ChatAssistant = () => {
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   
   // Refs
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pasteAreaRef = useRef<HTMLDivElement>(null);
   
   // Auth
   const { user, loading } = useAuth();
@@ -68,6 +71,60 @@ const ChatAssistant = () => {
       navigate('/login');
     }
   }, [user, loading, navigate]);
+  
+  // Setup keyboard events for image viewer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (viewingImage && e.key === 'Escape') {
+        closeImageViewer();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [viewingImage]);
+  
+  // Setup clipboard paste event listener
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (e.clipboardData && e.clipboardData.items) {
+        // Check if clipboardData contains an image
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            // Get image from clipboard
+            const blob = items[i].getAsFile();
+            if (blob) {
+              // Convert to base64
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                setSelectedImage(blob);
+                setImagePreview(reader.result as string);
+                toast.success('Image pasted from clipboard');
+              };
+              reader.onerror = () => {
+                toast.error('Failed to read pasted image');
+              };
+              reader.readAsDataURL(blob);
+              // Prevent default paste behavior
+              e.preventDefault();
+              break;
+            }
+          }
+        }
+      }
+    };
+
+    // Add paste event listener to the document
+    document.addEventListener('paste', handlePaste);
+    
+    // Clean up the event listener on unmount
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, []);
   
   // Scroll to bottom of conversation when new messages are added
   useEffect(() => {
@@ -124,24 +181,69 @@ const ChatAssistant = () => {
   const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Check file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Image size should be less than 10MB');
-        return;
-      }
-      
-      setSelectedImage(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.onerror = () => {
-        toast.error('Failed to read the image file');
-        setSelectedImage(null);
-      };
-      reader.readAsDataURL(file);
+      processImageFile(file);
+    }
+  };
+  
+  // Process image file (used by both drag-drop and file input)
+  const processImageFile = (file: File) => {
+    // Check file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size should be less than 10MB');
+      return;
+    }
+    
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+      toast.error('Only image files are supported');
+      return;
+    }
+    
+    setSelectedImage(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read the image file');
+      setSelectedImage(null);
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  // Handle drag events
+  const handleDragEnter = (e: React.DragEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isProcessing) return;
+    setIsDragging(true);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+  
+  const handleDragOver = (e: React.DragEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isProcessing) return;
+    if (!isDragging) setIsDragging(true);
+  };
+  
+  const handleDrop = (e: React.DragEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    if (isProcessing) return;
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      processImageFile(file);
     }
   };
   
@@ -239,7 +341,7 @@ const ChatAssistant = () => {
           'Authorization': `Bearer ${openAIService.getApiKey()}`
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-4o",
           messages: messages,
           temperature: 0.7,
           max_tokens: 2000
@@ -332,6 +434,16 @@ const ChatAssistant = () => {
     navigator.clipboard.writeText(code)
       .then(() => toast.success('Code copied to clipboard'))
       .catch(() => toast.error('Failed to copy code'));
+  };
+  
+  // Handle image click for full-screen view
+  const handleImageClick = (imageUrl: string) => {
+    setViewingImage(imageUrl);
+  };
+  
+  // Close image viewer
+  const closeImageViewer = () => {
+    setViewingImage(null);
   };
   
   // If loading or user not authenticated
@@ -448,6 +560,32 @@ const ChatAssistant = () => {
                     </ul>
                   </div>
                   
+                  <div className="pb-2 border-b border-border">
+                    <h4 className="font-medium mb-1">Image Features:</h4>
+                    <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                      <li>Upload screenshots of code for debugging</li>
+                      <li>Share error messages for quick troubleshooting</li>
+                      <li>Send UI/UX designs for implementation advice</li>
+                      <li>Submit diagrams for architecture feedback</li>
+                      <li>View images in full-screen with a single click</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="pb-2 border-b border-border">
+                    <h4 className="font-medium mb-1">Image Upload Methods:</h4>
+                    <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                      <li><span className="font-medium">Paste:</span> Ctrl+V or Cmd+V to paste screenshots</li>
+                      <li><span className="font-medium">Drag & Drop:</span> Drag image files into the chat</li>
+                      <li><span className="font-medium">Upload:</span> Click the Image button to select a file</li>
+                    </ul>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Max image size: 10MB</span>
+                      <Badge variant="outline" className="bg-primary/10">
+                        <span className="animate-pulse mr-1">•</span> Image support active
+                      </Badge>
+                    </div>
+                  </div>
+                  
                   <div>
                     <h4 className="font-medium mb-1">Language Focus:</h4>
                     <div className="flex flex-wrap gap-2 mt-2">
@@ -550,7 +688,7 @@ const ChatAssistant = () => {
                                         src={message.image} 
                                         alt="Uploaded content" 
                                         className="max-w-full object-contain max-h-64"
-                                        onClick={() => window.open(message.image, '_blank')}
+                                        onClick={() => handleImageClick(message.image)}
                                         style={{ cursor: 'pointer' }}
                                       />
                                     </div>
@@ -567,23 +705,55 @@ const ChatAssistant = () => {
                 </div>
                 
                 {/* Text Input Form */}
-                <form onSubmit={handleTextSubmit} className="flex flex-col gap-2 p-3 bg-background border-t border-border">
+                <form 
+                  onSubmit={handleTextSubmit} 
+                  className={`flex flex-col gap-2 p-3 bg-background border-t border-border relative ${isDragging ? 'ring-2 ring-primary/50' : ''}`}
+                  onDragEnter={handleDragEnter} 
+                  onDragLeave={handleDragLeave} 
+                  onDragOver={handleDragOver} 
+                  onDrop={handleDrop}
+                >
+                  {/* Drag overlay */}
+                  {isDragging && (
+                    <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-md flex items-center justify-center z-10">
+                      <div className="text-center p-4 rounded-lg bg-background/80">
+                        <ImageIcon className="mx-auto h-8 w-8 text-primary mb-2" />
+                        <p className="text-sm font-medium">Drop image here</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Image preview area */}
                   {imagePreview && (
-                    <div className="relative w-full mb-2 rounded-md overflow-hidden border border-input">
-                      <div className="aspect-video max-h-48 w-full relative">
-                        <img 
-                          src={imagePreview} 
-                          alt="Preview" 
-                          className="w-full h-full object-contain"
-                        />
-                        <button
-                          type="button"
-                          onClick={removeSelectedImage}
-                          className="absolute top-2 right-2 bg-background/80 p-1 rounded-full hover:bg-background"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                    <div className="relative w-full mb-2 rounded-md overflow-hidden border border-input bg-black/5">
+                      <div className="flex flex-col sm:flex-row items-center">
+                        <div className="aspect-video h-32 sm:h-48 relative flex-shrink-0">
+                          <img 
+                            src={imagePreview} 
+                            alt="Preview" 
+                            className="h-full object-contain"
+                          />
+                        </div>
+                        <div className="p-2 sm:p-3 w-full">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium truncate">Image ready to send</span>
+                            <button
+                              type="button"
+                              onClick={removeSelectedImage}
+                              className="bg-background/80 p-1 rounded-full hover:bg-background flex-shrink-0"
+                              aria-label="Remove image"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                          {selectedImage && (
+                            <p className="text-xs text-muted-foreground">
+                              {selectedImage.name.length > 25 
+                                ? selectedImage.name.substring(0, 25) + '...' 
+                                : selectedImage.name} • {(selectedImage.size / 1024).toFixed(0)} KB
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -592,22 +762,34 @@ const ChatAssistant = () => {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="p-2 rounded-md hover:bg-primary/20 hover:text-primary transition-colors border border-input flex items-center gap-1"
+                      className="p-2 rounded-md hover:bg-primary/20 hover:text-primary transition-colors border border-input flex items-center gap-1 relative"
                       title="Upload image"
                       disabled={isProcessing}
                     >
                       <ImageIcon className="h-4 w-4" />
                       <span className="text-xs hidden sm:inline">Image</span>
+                      {selectedImage && (
+                        <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                          1
+                        </span>
+                      )}
                     </button>
-                    <input
-                      type="text"
-                      placeholder="Type your programming question here..."
-                      className="flex-1 bg-background px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-primary"
-                      value={textInput}
-                      onChange={(e) => setTextInput(e.target.value)}
-                      ref={textInputRef}
-                      disabled={isProcessing}
-                    />
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="Type your programming question here... (Ctrl+V to paste image)"
+                        className="w-full bg-background px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-primary"
+                        value={textInput}
+                        onChange={(e) => setTextInput(e.target.value)}
+                        ref={textInputRef}
+                        disabled={isProcessing}
+                      />
+                      {imagePreview ? null : (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground hidden md:block">
+                          Ctrl+V to paste image
+                        </div>
+                      )}
+                    </div>
                     
                     <Button 
                       type="submit" 
@@ -824,6 +1006,39 @@ const ChatAssistant = () => {
           <p>© {new Date().getFullYear()} LearnOmatic | AI-Powered Learning & Documentation Assistant</p>
         </div>
       </footer>
+      
+      {/* Full-screen image viewer */}
+      {viewingImage && (
+        <div 
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
+          onClick={closeImageViewer}
+        >
+          <div className="relative max-w-5xl max-h-[90vh] w-full p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute top-4 right-4 flex gap-2 z-10">
+              <button
+                className="bg-black/50 text-white p-2 rounded-full hover:bg-black/80 transition-colors"
+                onClick={closeImageViewer}
+                aria-label="Close image viewer"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="flex items-center justify-center h-full">
+              <img 
+                src={viewingImage} 
+                alt="Fullscreen view" 
+                className="max-w-full max-h-[85vh] object-contain mx-auto rounded-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-black/50 rounded-full px-4 py-2 text-white text-sm">
+              Press ESC or click outside to close
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
