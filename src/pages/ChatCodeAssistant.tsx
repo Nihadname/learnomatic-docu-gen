@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Copy, Play, Code, Loader2, Terminal, Sparkles, Info } from 'lucide-react';
+import { Copy, Play, Code, Loader2, Terminal, Sparkles, Info, Upload, Image as ImageIcon, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import GlassCard from '@/components/ui-custom/GlassCard';
 import AnimatedContainer from '@/components/ui-custom/AnimatedContainer';
@@ -29,6 +29,7 @@ interface ConversationMessage {
   content: string;
   timestamp: Date;
   codeSnippets?: CodeSnippet[];
+  image?: string;
 }
 
 interface CodeSnippet {
@@ -48,10 +49,13 @@ const ChatAssistant = () => {
   const [currentExplainCode, setCurrentExplainCode] = useState<string>('');
   const [codeExecutionResult, setCodeExecutionResult] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   // Refs
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Auth
   const { user, loading } = useAuth();
@@ -116,15 +120,50 @@ const ChatAssistant = () => {
     setShowExplainPanel(true);
   };
   
+  // Handle image selection
+  const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Image size should be less than 10MB');
+        return;
+      }
+      
+      setSelectedImage(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read the image file');
+        setSelectedImage(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // Remove selected image
+  const removeSelectedImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
   // Handle user input
   const handleUserInput = async (input: string) => {
-    if (!input.trim()) return;
+    if (!input.trim() && !selectedImage) return;
     
     // Add user message to conversation
     const userMessage: ConversationMessage = {
       role: 'user',
       content: input,
-      timestamp: new Date()
+      timestamp: new Date(),
+      image: imagePreview || undefined
     };
     
     setConversation(prev => [...prev, userMessage]);
@@ -139,7 +178,10 @@ const ChatAssistant = () => {
       For example: \`\`\`javascript\nconsole.log("Hello world");\n\`\`\`
       Keep responses focused, educational and practical for developers.
       Include multiple code examples when appropriate.
-      Focus on providing comprehensive, executable code blocks.`;
+      Focus on providing comprehensive, executable code blocks.
+      If the user uploads an image (screenshot of code, error, or diagram), analyze the content and provide relevant assistance.
+      For code screenshots, try to recreate the code if possible, fix errors, and explain solutions.
+      For diagrams or mockups, provide implementation guidance with appropriate code examples.`;
       
       // Get API key
       await openAIService.ensureApiKey();
@@ -150,13 +192,42 @@ const ChatAssistant = () => {
           role: 'system',
           content: systemMessage
         },
-        ...conversation.map(msg => ({
-          role: msg.role,
-          content: msg.content
-        })),
+        ...conversation.map(msg => {
+          const content = [];
+          
+          // Add text content
+          if (msg.content) {
+            content.push({
+              type: 'text',
+              text: msg.content
+            });
+          }
+          
+          // Add image content if present
+          if (msg.image) {
+            content.push({
+              type: 'image_url',
+              image_url: {
+                url: msg.image
+              }
+            });
+          }
+          
+          return {
+            role: msg.role,
+            content: content.length === 1 && content[0].type === 'text' 
+              ? content[0].text 
+              : content
+          };
+        }),
         {
           role: 'user',
-          content: input
+          content: imagePreview 
+            ? [
+                { type: 'text', text: input || 'Please analyze this code/image and provide assistance.' },
+                { type: 'image_url', image_url: { url: imagePreview } }
+              ]
+            : input
         }
       ];
       
@@ -176,7 +247,17 @@ const ChatAssistant = () => {
       });
       
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json().catch(() => null);
+        const statusText = response.statusText;
+        const errorMessage = errorData?.error?.message || `API error: ${response.status} ${statusText}`;
+        
+        if (response.status === 413) {
+          throw new Error('The image is too large. Please use a smaller image or compress the current one.');
+        } else if (response.status === 429) {
+          throw new Error('Rate limit exceeded. Please wait a moment before trying again.');
+        } else {
+          throw new Error(errorMessage);
+        }
       }
       
       const data = await response.json();
@@ -194,6 +275,9 @@ const ChatAssistant = () => {
       };
       
       setConversation(prev => [...prev, assistantMessage]);
+      
+      // Clean up the image after sending
+      removeSelectedImage();
       
     } catch (error) {
       console.error('Error processing request:', error);
@@ -237,7 +321,7 @@ const ChatAssistant = () => {
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!textInput.trim()) return;
+    if (!textInput.trim() && !selectedImage) return;
     
     handleUserInput(textInput);
     setTextInput('');
@@ -359,6 +443,8 @@ const ChatAssistant = () => {
                       <li>Copy code with one click</li>
                       <li>Multiple examples available for complex topics</li>
                       <li>Change theme to customize code appearance</li>
+                      <li>Upload screenshots of code or errors for analysis</li>
+                      <li>Share diagrams or mockups for implementation help</li>
                     </ul>
                   </div>
                   
@@ -455,7 +541,21 @@ const ChatAssistant = () => {
                                   })}
                                 </div>
                               ) : (
-                                <p className="break-words">{message.content}</p>
+                                <div>
+                                  <p className="break-words">{message.content}</p>
+                                  {/* Display user uploaded image if present */}
+                                  {message.image && (
+                                    <div className="mt-2 rounded-md overflow-hidden border border-border">
+                                      <img 
+                                        src={message.image} 
+                                        alt="Uploaded content" 
+                                        className="max-w-full object-contain max-h-64"
+                                        onClick={() => window.open(message.image, '_blank')}
+                                        style={{ cursor: 'pointer' }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -467,25 +567,66 @@ const ChatAssistant = () => {
                 </div>
                 
                 {/* Text Input Form */}
-                <form onSubmit={handleTextSubmit} className="flex items-center gap-2 p-3 bg-background border-t border-border">
-                  <input
-                    type="text"
-                    placeholder="Type your programming question here..."
-                    className="flex-1 bg-background px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    ref={textInputRef}
-                    disabled={isProcessing}
-                  />
+                <form onSubmit={handleTextSubmit} className="flex flex-col gap-2 p-3 bg-background border-t border-border">
+                  {/* Image preview area */}
+                  {imagePreview && (
+                    <div className="relative w-full mb-2 rounded-md overflow-hidden border border-input">
+                      <div className="aspect-video max-h-48 w-full relative">
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeSelectedImage}
+                          className="absolute top-2 right-2 bg-background/80 p-1 rounded-full hover:bg-background"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   
-                  <Button 
-                    type="submit" 
-                    size="sm" 
-                    disabled={isProcessing || !textInput.trim()}
-                    className="px-4"
-                  >
-                    Send
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2 rounded-md hover:bg-primary/20 hover:text-primary transition-colors border border-input flex items-center gap-1"
+                      title="Upload image"
+                      disabled={isProcessing}
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      <span className="text-xs hidden sm:inline">Image</span>
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="Type your programming question here..."
+                      className="flex-1 bg-background px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      ref={textInputRef}
+                      disabled={isProcessing}
+                    />
+                    
+                    <Button 
+                      type="submit" 
+                      size="sm" 
+                      disabled={isProcessing || (!textInput.trim() && !selectedImage)}
+                      className="px-4"
+                    >
+                      Send
+                    </Button>
+                    
+                    <input
+                      type="file"
+                      className="hidden"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      onChange={handleImageSelection}
+                      disabled={isProcessing}
+                    />
+                  </div>
                 </form>
               </GlassCard>
               
