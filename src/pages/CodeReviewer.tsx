@@ -127,28 +127,29 @@ const CodeReviewer = () => {
       
       .code-editor-container {
         scrollbar-width: thin;
-        scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+        scrollbar-color: rgba(155, 155, 155, 0.7) rgba(0, 0, 0, 0.3);
       }
       
       .code-editor-container::-webkit-scrollbar {
-        height: 8px;
-        width: 8px;
+        height: 10px;
+        width: 10px;
       }
       
       .code-editor-container::-webkit-scrollbar-track {
-        background: transparent;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 10px;
       }
       
       .code-editor-container::-webkit-scrollbar-thumb {
-        background-color: rgba(155, 155, 155, 0.5);
-        border-radius: 20px;
-        border: 3px solid transparent;
+        background-color: rgba(155, 155, 155, 0.7);
+        border-radius: 10px;
+        border: 2px solid rgba(0, 0, 0, 0.3);
       }
 
       #fixed-code-textarea {
-        overflow-y: visible !important;
+        overflow-y: auto !important;
         height: auto !important;
-        min-height: 0 !important;
+        min-height: 300px !important;
       }
       
       /* Mobile styles */
@@ -1192,7 +1193,7 @@ def quickProcess(file, drop_cols=[]):
                         Here's the optimized version of your code with all suggested fixes applied:
                       </p>
                       <div className="border border-input rounded-md overflow-hidden bg-black dark:bg-black w-full">
-                        <div className="overflow-x-auto overflow-y-auto max-h-[600px] code-editor-container" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        <div className="overflow-x-auto overflow-y-auto max-h-[70vh] code-editor-container" style={{ WebkitOverflowScrolling: 'touch', backgroundColor: 'black' }}>
                           <Editor
                             value={reviewResult.fixedCode}
                             onValueChange={() => {}}
