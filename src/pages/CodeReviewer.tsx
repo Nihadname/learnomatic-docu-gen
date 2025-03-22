@@ -132,6 +132,7 @@ const CodeReviewer = () => {
       
       .code-editor-container::-webkit-scrollbar {
         height: 8px;
+        width: 8px;
       }
       
       .code-editor-container::-webkit-scrollbar-track {
@@ -142,6 +143,12 @@ const CodeReviewer = () => {
         background-color: rgba(155, 155, 155, 0.5);
         border-radius: 20px;
         border: 3px solid transparent;
+      }
+
+      #fixed-code-textarea {
+        overflow-y: visible !important;
+        height: auto !important;
+        min-height: 0 !important;
       }
       
       /* Mobile styles */
@@ -1201,10 +1208,14 @@ def quickProcess(file, drop_cols=[]):
                               borderRadius: '0.375rem',
                               lineHeight: '1.6',
                               letterSpacing: '0.2px',
+                              overflow: 'visible',
+                              width: '100%'
                             }}
                             className="w-full vibrant-code-editor"
                             readOnly={true}
                             textareaClassName="syntax-highlight-vibrant"
+                            textareaId="fixed-code-textarea"
+                            preClassName="overflow-visible"
                           />
                         </div>
                       </div>
