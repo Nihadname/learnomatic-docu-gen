@@ -1147,13 +1147,7 @@ def quickProcess(file, drop_cols=[]):
                   </div>
                   
                   {reviewResult.fixedCode && (
-                    <GlassCard 
-                      className="p-6 fixed-code-container" 
-                      style={{ 
-                        maxWidth: windowWidth > 1024 ? '160%' : '140%', 
-                        marginLeft: windowWidth > 1024 ? '-5rem' : '-1rem' 
-                      }}
-                    >
+                    <GlassCard className="p-6 fixed-code-container">
                       <div className="flex justify-between items-center mb-4">
                         <h3 className="text-xl font-medium flex items-center gap-2">
                           <CheckCircle size={20} className="text-green-500" />
@@ -1191,7 +1185,7 @@ def quickProcess(file, drop_cols=[]):
                         Here's the optimized version of your code with all suggested fixes applied:
                       </p>
                       <div className="border border-input rounded-md overflow-hidden bg-black dark:bg-black w-full">
-                        <div className="overflow-x-auto code-editor-container" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        <div className="overflow-x-auto overflow-y-auto max-h-[600px] code-editor-container" style={{ WebkitOverflowScrolling: 'touch' }}>
                           <Editor
                             value={reviewResult.fixedCode}
                             onValueChange={() => {}}
@@ -1202,14 +1196,13 @@ def quickProcess(file, drop_cols=[]):
                               fontSize: '14px',
                               backgroundColor: 'black',
                               color: '#ffffff',
-                              minHeight: '450px',
-                              maxHeight: '600px',
+                              minHeight: 'auto',
+                              height: 'auto',
                               borderRadius: '0.375rem',
-                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
                               lineHeight: '1.6',
                               letterSpacing: '0.2px',
                             }}
-                            className="min-h-[450px] w-full vibrant-code-editor"
+                            className="w-full vibrant-code-editor"
                             readOnly={true}
                             textareaClassName="syntax-highlight-vibrant"
                           />
