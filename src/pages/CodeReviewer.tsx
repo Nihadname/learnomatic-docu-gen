@@ -1193,31 +1193,30 @@ def quickProcess(file, drop_cols=[]):
                         Here's the optimized version of your code with all suggested fixes applied:
                       </p>
                       <div className="border border-input rounded-md overflow-hidden bg-black dark:bg-black w-full">
-                        <div className="overflow-x-auto overflow-y-auto max-h-[70vh] code-editor-container" style={{ WebkitOverflowScrolling: 'touch', backgroundColor: 'black' }}>
-                          <Editor
-                            value={reviewResult.fixedCode}
-                            onValueChange={() => {}}
-                            highlight={code => highlight(code, getLanguageHighlighter(language), language)}
-                            padding={20}
-                            style={{
-                              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                              fontSize: '14px',
-                              backgroundColor: 'black',
-                              color: '#ffffff',
-                              minHeight: 'auto',
-                              height: 'auto',
-                              borderRadius: '0.375rem',
-                              lineHeight: '1.6',
-                              letterSpacing: '0.2px',
-                              overflow: 'visible',
-                              width: '100%'
-                            }}
-                            className="w-full vibrant-code-editor"
-                            readOnly={true}
-                            textareaClassName="syntax-highlight-vibrant"
-                            textareaId="fixed-code-textarea"
-                            preClassName="overflow-visible"
-                          />
+                        <div className="overflow-x-auto overflow-y-auto max-h-[400px] code-editor-container" style={{ 
+                          WebkitOverflowScrolling: 'touch', 
+                          backgroundColor: 'black',
+                          overflowY: 'scroll',
+                          display: 'block'
+                        }}>
+                          <pre className="p-5 text-sm leading-relaxed overflow-visible" style={{ 
+                            fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                            color: '#ffffff',
+                            backgroundColor: 'black',
+                            overflowX: 'auto',
+                            whiteSpace: 'pre',
+                            margin: 0
+                          }}>
+                            <code className="vibrant-code-editor" 
+                              dangerouslySetInnerHTML={{ 
+                                __html: highlight(
+                                  reviewResult.fixedCode || '', 
+                                  getLanguageHighlighter(language), 
+                                  language
+                                )
+                              }}
+                            />
+                          </pre>
                         </div>
                       </div>
                     </GlassCard>
