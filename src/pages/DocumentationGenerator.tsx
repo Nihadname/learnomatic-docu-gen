@@ -209,10 +209,10 @@ ${endpoint.responseFields?.length ? 'Response Fields:\n' + endpoint.responseFiel
       } else {
         // Handle regular code documentation (function, class, readme)
         result = await openAIService.generateDocumentation(
-          data.codeSnippet,
-          data.language,
+        data.codeSnippet,
+        data.language,
           data.docType as 'function' | 'class' | 'readme'
-        );
+      );
       }
       
       setDocumentation(result);
@@ -1485,7 +1485,7 @@ Features:
                       )}
                       
                       {docType === 'github' && (
-                        <div>
+                      <div>
                           <Label htmlFor="githubUrl">GitHub Repository URL</Label>
                           <div className="flex items-center gap-2 mt-1">
                             <input
