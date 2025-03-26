@@ -1,0 +1,111 @@
+# Cursor Rules Configuration (Advanced)
+
+[formatting]
+# Use 2 spaces for indentation
+indent_style = "space"
+indent_size = 2
+
+# Set maximum line length to 100 characters (for readability)
+max_line_length = 100
+
+# Ensure newline at the end of the file
+insert_final_newline = true
+
+# Trim trailing whitespace
+trim_trailing_whitespace = true
+
+# Ensure that there is no trailing space between elements in arrays/objects
+no_trailing_comma = true
+
+# Handle consistent quote styles
+quotes = {
+  "single": true,  # Enforce single quotes for strings
+  "jsx": "double", # Enforce double quotes for JSX attributes
+}
+
+# Formatting for object properties and array items
+brace_style = "1tbs"  # One True Brace Style for blocks and methods
+array_item_separator = "always"  # Always put commas after array items
+
+[linting]
+# Enable TypeScript linting
+typescript = true
+
+# Enable React linting
+react = true
+
+# React specific linting rules
+react_rules = {
+  "react/jsx-no-undef": "error",            # Prevent undefined JSX components
+  "react/jsx-uses-react": "error",          # Ensure React is imported in JSX files
+  "react/react-in-jsx-scope": "error",      # Prevent React missing in scope
+  "react/jsx-pascal-case": "warn",          # Warn if JSX elements are not in PascalCase
+  "react/jsx-fragments": "error",           # Enforce usage of React fragments for list rendering
+  "react/jsx-sort-props": "error",          # Enforce sorting props in JSX
+}
+
+# TypeScript specific linting rules
+typescript_rules = {
+  "@typescript-eslint/no-explicit-any": "error",               # Avoid using any type
+  "@typescript-eslint/no-unused-vars": "error",                # Warn about unused variables
+  "@typescript-eslint/explicit-module-boundary-types": "warn", # Require explicit return types for functions
+  "@typescript-eslint/ban-types": "error",                     # Avoid using banned types like `Object`
+  "@typescript-eslint/no-empty-interface": "warn",              # Avoid empty interfaces
+}
+
+# Custom linting rules for code quality and performance
+rules = {
+  "no-console": "warn",                                    # Warn about console.log usage
+  "no-debugger": "error",                                   # Disallow debugger statements
+  "no-duplicate-imports": "error",                          # Prevent duplicate imports
+  "no-magic-numbers": "warn",                               # Avoid magic numbers in the code
+  "no-implicit-coercion": "error",                          # Avoid type coercion in expressions
+  "no-param-reassign": "error",                             # Disallow reassignment of function parameters
+  "eqeqeq": "error",                                        # Always use strict equality (===)
+  "prefer-const": "error",                                  # Prefer `const` over `let` for variables that are never reassigned
+  "no-unreachable": "error",                                # Disallow unreachable code
+  "jsx-quotes": ["error", "prefer-double"],                 # Prefer double quotes for JSX attributes
+  "react/prop-types": "off",                                # Disable PropTypes for TypeScript users
+  "react/jsx-no-bind": "warn",                              # Warn about functions being used directly in JSX
+}
+
+[files]
+# Include all TypeScript and JavaScript files
+include = ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+
+# Exclude node_modules and build directories
+exclude = ["node_modules/**", "dist/**", "build/**"]
+
+# Glob pattern to include all test files for linting
+test_include = ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"]
+
+# Lint files for performance and security
+performance_exclude = ["**/vendor/**", "**/third_party/**"]
+
+[plugins]
+# Include relevant plugins for React, TypeScript, and performance analysis
+plugins = ["@typescript-eslint", "react", "react-hooks", "eslint-plugin-jsx-a11y"]
+
+[extends]
+# Use recommended settings for ESLint, TypeScript, React, and Prettier
+extends = [
+  "eslint:recommended",                   # ESLint's recommended rules
+  "plugin:@typescript-eslint/recommended", # TypeScript recommended rules
+  "plugin:react/recommended",              # React recommended rules
+  "plugin:react-hooks/recommended",        # React Hooks best practices
+  "plugin:jsx-a11y/recommended",          # Accessibility rules for JSX
+  "prettier"                              # Use Prettier rules for code formatting
+]
+
+[settings]
+# Automatically fix ESLint issues on save for supported IDEs
+eslint.autoFixOnSave = true
+
+# Enable hooks linting for React
+react-hooks = {
+  "version": "detect",  # Automatically detect the React version
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",         # Ensure hooks are used correctly
+    "react-hooks/exhaustive-deps": "warn"          # Warn if dependencies are not defined for hooks
+  }
+}

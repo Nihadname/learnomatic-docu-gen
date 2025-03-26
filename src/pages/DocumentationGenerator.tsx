@@ -32,7 +32,28 @@ import html2canvas from 'html2canvas';
 interface FormData {
   codeSnippet: string;
   language: string;
-  docType: 'function' | 'class' | 'readme';
+  docType: DocType;
+  githubUrl?: string;
+  apiEndpoints?: ApiEndpoint[];
+}
+
+type DocType = 'function' | 'class' | 'readme' | 'github' | 'api';
+
+interface ApiEndpoint {
+  id: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  path: string;
+  description: string;
+  requestParams?: ApiParam[];
+  responseFields?: ApiParam[];
+}
+
+interface ApiParam {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
 }
 
 const DocumentationGenerator = () => {
@@ -45,6 +66,11 @@ const DocumentationGenerator = () => {
     pdf: false,
     markdown: false
   });
+  const [apiEndpoints, setApiEndpoints] = useState<ApiEndpoint[]>([]);
+  const [currentApiEndpoint, setCurrentApiEndpoint] = useState<ApiEndpoint | null>(null);
+  const [isAnalyzingRepo, setIsAnalyzingRepo] = useState<boolean>(false);
+  const [repoStructure, setRepoStructure] = useState<any>(null);
+  const [repoFiles, setRepoFiles] = useState<string[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
   const documentationRef = useRef<HTMLDivElement>(null);
   const { user, loading } = useAuth();
@@ -74,7 +100,9 @@ const DocumentationGenerator = () => {
     defaultValues: {
       codeSnippet: '',
       language: 'javascript',
-      docType: 'function'
+      docType: 'function',
+      githubUrl: '',
+      apiEndpoints: []
     }
   });
 
@@ -85,6 +113,7 @@ const DocumentationGenerator = () => {
 
   const docType = watch('docType');
   const language = watch('language');
+  const githubUrl = watch('githubUrl');
 
   const getLanguageHighlighter = (lang: string) => {
     switch (lang) {
@@ -135,11 +164,56 @@ const DocumentationGenerator = () => {
       await openAIService.ensureApiKey();
       setApiKeyLoading(false);
       
-      const result = await openAIService.generateDocumentation(
-        data.codeSnippet,
-        data.language,
-        data.docType
-      );
+      let result = '';
+      
+      if (data.docType === 'github') {
+        // Handle GitHub repository documentation
+        if (!data.githubUrl || !validateGithubUrl(data.githubUrl)) {
+          throw new Error('Please enter a valid GitHub repository URL');
+        }
+        
+        // Create a structured description of the repository to send to the API
+        const repoDescription = `GitHub Repository: ${data.githubUrl}\n\n` +
+                               `Files found: ${repoFiles.join(', ')}\n\n` +
+                               `${data.codeSnippet || 'Please generate comprehensive documentation for this repository.'}`;
+        
+        // Use the standard generateDocumentation method but with repo data
+        result = await openAIService.generateDocumentation(
+          repoDescription,
+          'markdown',
+          'readme'
+        );
+      } else if (data.docType === 'api') {
+        // Handle API documentation
+        if (!data.apiEndpoints || data.apiEndpoints.length === 0) {
+          throw new Error('Please add at least one API endpoint');
+        }
+        
+        // Format API endpoints into structured text
+        const apiDescription = data.apiEndpoints.map(endpoint => {
+          return `Endpoint: ${endpoint.method} ${endpoint.path}
+Description: ${endpoint.description || 'No description provided'}
+${endpoint.requestParams?.length ? 'Request Parameters:\n' + endpoint.requestParams.map(p => `- ${p.name} (${p.type})${p.required ? ' [Required]' : ''}: ${p.description}`).join('\n') : ''}
+${endpoint.responseFields?.length ? 'Response Fields:\n' + endpoint.responseFields.map(p => `- ${p.name} (${p.type}): ${p.description}`).join('\n') : ''}
+---`;
+        }).join('\n\n');
+        
+        const fullApiDescription = `API Documentation Request\n\n${apiDescription}\n\nAdditional Notes: ${data.codeSnippet || 'No additional notes provided.'}`;
+        
+        // Use the standard generateDocumentation method
+        result = await openAIService.generateDocumentation(
+          fullApiDescription,
+          'markdown',
+          'readme'
+        );
+      } else {
+        // Handle regular code documentation (function, class, readme)
+        result = await openAIService.generateDocumentation(
+          data.codeSnippet,
+          data.language,
+          data.docType as 'function' | 'class' | 'readme'
+        );
+      }
       
       setDocumentation(result);
       toast.success('Documentation generated successfully');
@@ -1234,6 +1308,61 @@ Features:
     ? 'Enter a project description or overview here...' 
     : 'Paste your code here...';
 
+  // Helper to validate GitHub URL
+  const validateGithubUrl = (url: string): boolean => {
+    const githubRegex = /^https?:\/\/(www\.)?github\.com\/[\w-]+\/[\w.-]+\/?$/;
+    return githubRegex.test(url);
+  };
+
+  // Function to analyze GitHub repository
+  const analyzeGitHubRepo = async (url: string) => {
+    if (!validateGithubUrl(url)) {
+      toast.error('Please enter a valid GitHub repository URL');
+      return;
+    }
+
+    setIsAnalyzingRepo(true);
+    try {
+      // Extract owner and repo from URL
+      const urlParts = url.replace(/\/$/, '').split('/');
+      const owner = urlParts[urlParts.length - 2];
+      const repo = urlParts[urlParts.length - 1];
+      
+      toast.info(`Analyzing repository: ${owner}/${repo}...`);
+      
+      // Fetch repository structure (in real implementation, you would call your backend API)
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch repository contents');
+      }
+      
+      const data = await response.json();
+      setRepoStructure(data);
+      
+      // Extract file list - prioritize key files like README, package.json, etc.
+      const keyFiles = data
+        .filter((item: any) => !item.name.startsWith('.') && item.type === 'file')
+        .map((item: any) => item.name);
+      
+      setRepoFiles(keyFiles);
+      
+      // Update the form with the repository structure summary
+      setValue('codeSnippet', 
+        `GitHub Repository: ${owner}/${repo}\n\n` +
+        `Key files found: ${keyFiles.join(', ')}\n\n` +
+        `This repository will be analyzed for documentation generation.`
+      );
+      setEditorValue(getValues('codeSnippet'));
+      
+      toast.success('Repository structure analyzed successfully');
+    } catch (error) {
+      console.error('Error analyzing repository:', error);
+      toast.error('Failed to analyze GitHub repository');
+    } finally {
+      setIsAnalyzingRepo(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/50">
       <Header />
@@ -1258,7 +1387,7 @@ Features:
                         <RadioGroup 
                           defaultValue="function" 
                           className="grid grid-cols-3 gap-4 mt-1"
-                          onValueChange={(value) => setValue('docType', value as 'function' | 'class' | 'readme')}
+                          onValueChange={(value) => setValue('docType', value as DocType)}
                         >
                           <div>
                         <RadioGroupItem value="function" id="function" className="peer sr-only" />
@@ -1290,10 +1419,49 @@ Features:
                           <span>README</span>
                             </Label>
                           </div>
+                          <div>
+                        <RadioGroupItem value="github" id="github" className="peer sr-only" />
+                            <Label
+                              htmlFor="github"
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className="mb-2 h-5 w-5" 
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                              >
+                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                              </svg>
+                          <span>GitHub</span>
+                            </Label>
+                          </div>
+                          <div>
+                        <RadioGroupItem value="api" id="api" className="peer sr-only" />
+                            <Label
+                              htmlFor="api"
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            >
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className="mb-2 h-5 w-5" 
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                              </svg>
+                          <span>API</span>
+                            </Label>
+                          </div>
                         </RadioGroup>
                       </div>
                       
-                      {docType !== 'readme' && (
+                      {docType !== 'readme' && docType !== 'github' && docType !== 'api' && (
                         <div>
                           <Label htmlFor="language">Programming Language</Label>
                           <Select
@@ -1316,10 +1484,379 @@ Features:
                         </div>
                       )}
                       
+                      {docType === 'github' && (
+                        <div>
+                          <Label htmlFor="githubUrl">GitHub Repository URL</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input
+                              type="text"
+                              id="githubUrl"
+                              placeholder="https://github.com/username/repository"
+                              className="flex-1 bg-background px-3 py-2 rounded-md border border-input focus:outline-none focus:ring-2 focus:ring-primary"
+                              {...register('githubUrl', { 
+                                required: 'GitHub URL is required',
+                                pattern: {
+                                  value: /^https?:\/\/(www\.)?github\.com\/[\w-]+\/[\w.-]+\/?$/,
+                                  message: 'Please enter a valid GitHub repository URL'
+                                }
+                              })}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => analyzeGitHubRepo(githubUrl)}
+                              disabled={isAnalyzingRepo || !githubUrl}
+                              className="whitespace-nowrap"
+                            >
+                              {isAnalyzingRepo ? (
+                                <>
+                                  <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary animate-spin mr-2"></div>
+                                  Analyzing...
+                                </>
+                              ) : 'Analyze Repo'}
+                            </Button>
+                          </div>
+                          {errors.githubUrl && (
+                            <p className="text-destructive text-sm mt-1">{errors.githubUrl.message}</p>
+                          )}
+                          
+                          <Alert className="mt-3 bg-muted/30">
+                            <AlertDescription className="text-xs">
+                              Enter a GitHub repository URL and click "Analyze Repo" to fetch project structure.
+                              The AI will analyze the repository files to create comprehensive documentation.
+                            </AlertDescription>
+                          </Alert>
+                          
+                          {repoFiles.length > 0 && (
+                            <div className="mt-3 p-3 bg-muted/20 rounded-md">
+                              <p className="text-sm font-medium mb-1">Repository Files:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {repoFiles.map((file, index) => (
+                                  <span key={index} className="px-2 py-1 bg-primary/10 text-xs rounded-md">
+                                    {file}
+                                  </span>
+                                ))}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                These files will be included in the documentation generation. 
+                                Add any specific details or focus areas in the "Repository Overview" field below.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {docType === 'api' && (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label>API Endpoints</Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const newEndpoint: ApiEndpoint = {
+                                  id: `endpoint-${Date.now()}`,
+                                  method: 'GET',
+                                  path: '',
+                                  description: '',
+                                  requestParams: [],
+                                  responseFields: []
+                                };
+                                setApiEndpoints([...apiEndpoints, newEndpoint]);
+                                setValue('apiEndpoints', [...apiEndpoints, newEndpoint]);
+                                setCurrentApiEndpoint(newEndpoint);
+                              }}
+                              className="gap-1"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                              Add Endpoint
+                            </Button>
+                          </div>
+                          
+                          {apiEndpoints.length === 0 ? (
+                            <div className="p-6 border border-dashed border-muted rounded-md flex flex-col items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground mb-2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                              <p className="text-sm text-muted-foreground">Click "Add Endpoint" to start building your API documentation</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="flex flex-wrap gap-2">
+                                {apiEndpoints.map((endpoint) => (
+                                  <button
+                                    key={endpoint.id}
+                                    type="button"
+                                    className={`px-3 py-1 rounded-md text-xs ${
+                                      currentApiEndpoint?.id === endpoint.id 
+                                        ? 'bg-primary text-primary-foreground' 
+                                        : 'bg-muted hover:bg-muted/80'
+                                    }`}
+                                    onClick={() => setCurrentApiEndpoint(endpoint)}
+                                  >
+                                    <span className={endpoint.method === 'GET' ? 'text-green-500' : 
+                                            endpoint.method === 'POST' ? 'text-blue-500' :
+                                            endpoint.method === 'PUT' ? 'text-yellow-500' :
+                                            endpoint.method === 'DELETE' ? 'text-red-500' : 'text-purple-500'}>
+                                      {endpoint.method}
+                                    </span>
+                                    {' '}
+                                    {endpoint.path || '/path'}
+                                  </button>
+                                ))}
+                              </div>
+                              
+                              {currentApiEndpoint && (
+                                <div className="p-4 border border-input rounded-md">
+                                  <h4 className="text-sm font-medium mb-3">Edit Endpoint</h4>
+                                  <div className="grid grid-cols-4 gap-3">
+                                    <div>
+                                      <Label htmlFor="method" className="text-xs">Method</Label>
+                                      <Select
+                                        value={currentApiEndpoint.method}
+                                        onValueChange={(value) => {
+                                          const updated = apiEndpoints.map(ep => 
+                                            ep.id === currentApiEndpoint.id ? {...ep, method: value as any} : ep
+                                          );
+                                          setApiEndpoints(updated);
+                                          setValue('apiEndpoints', updated);
+                                          setCurrentApiEndpoint({...currentApiEndpoint, method: value as any});
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-8 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="GET">GET</SelectItem>
+                                          <SelectItem value="POST">POST</SelectItem>
+                                          <SelectItem value="PUT">PUT</SelectItem>
+                                          <SelectItem value="DELETE">DELETE</SelectItem>
+                                          <SelectItem value="PATCH">PATCH</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="col-span-3">
+                                      <Label htmlFor="path" className="text-xs">Path</Label>
+                                      <input
+                                        type="text"
+                                        id="path"
+                                        placeholder="/api/resource/{id}"
+                                        value={currentApiEndpoint.path}
+                                        onChange={(e) => {
+                                          const updated = apiEndpoints.map(ep => 
+                                            ep.id === currentApiEndpoint.id ? {...ep, path: e.target.value} : ep
+                                          );
+                                          setApiEndpoints(updated);
+                                          setValue('apiEndpoints', updated);
+                                          setCurrentApiEndpoint({...currentApiEndpoint, path: e.target.value});
+                                        }}
+                                        className="w-full px-3 py-1 h-8 text-xs rounded-md border border-input bg-transparent focus:outline-none focus:ring-1 focus:ring-primary"
+                                      />
+                                    </div>
+                                    <div className="col-span-4">
+                                      <Label htmlFor="description" className="text-xs">Description</Label>
+                                      <Textarea
+                                        id="description"
+                                        placeholder="Describe what this endpoint does..."
+                                        value={currentApiEndpoint.description}
+                                        onChange={(e) => {
+                                          const updated = apiEndpoints.map(ep => 
+                                            ep.id === currentApiEndpoint.id ? {...ep, description: e.target.value} : ep
+                                          );
+                                          setApiEndpoints(updated);
+                                          setValue('apiEndpoints', updated);
+                                          setCurrentApiEndpoint({...currentApiEndpoint, description: e.target.value});
+                                        }}
+                                        className="resize-none h-16 text-xs"
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Parameters section */}
+                                  <div className="mt-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <Label className="text-xs">Request Parameters</Label>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 text-xs"
+                                        onClick={() => {
+                                          const newParam = {
+                                            id: `param-${Date.now()}`,
+                                            name: '',
+                                            type: 'string',
+                                            description: '',
+                                            required: false
+                                          };
+                                          const updatedParams = [
+                                            ...(currentApiEndpoint.requestParams || []),
+                                            newParam
+                                          ];
+                                          const updated = apiEndpoints.map(ep => 
+                                            ep.id === currentApiEndpoint.id 
+                                              ? {...ep, requestParams: updatedParams} 
+                                              : ep
+                                          );
+                                          setApiEndpoints(updated);
+                                          setValue('apiEndpoints', updated);
+                                          setCurrentApiEndpoint({
+                                            ...currentApiEndpoint, 
+                                            requestParams: updatedParams
+                                          });
+                                        }}
+                                      >
+                                        + Add Parameter
+                                      </Button>
+                                    </div>
+                                    
+                                    {(!currentApiEndpoint.requestParams || currentApiEndpoint.requestParams.length === 0) && (
+                                      <p className="text-xs text-muted-foreground italic">No parameters defined</p>
+                                    )}
+                                    
+                                    <div className="space-y-2">
+                                      {currentApiEndpoint.requestParams?.map((param, index) => (
+                                        <div key={param.id} className="grid grid-cols-12 gap-2 items-center text-xs p-2 bg-muted/30 rounded-md">
+                                          <div className="col-span-3">
+                                            <input
+                                              type="text"
+                                              placeholder="Name"
+                                              value={param.name}
+                                              onChange={(e) => {
+                                                const updatedParams = [...(currentApiEndpoint.requestParams || [])];
+                                                updatedParams[index] = {...param, name: e.target.value};
+                                                
+                                                const updated = apiEndpoints.map(ep => 
+                                                  ep.id === currentApiEndpoint.id 
+                                                    ? {...ep, requestParams: updatedParams} 
+                                                    : ep
+                                                );
+                                                setApiEndpoints(updated);
+                                                setValue('apiEndpoints', updated);
+                                                setCurrentApiEndpoint({
+                                                  ...currentApiEndpoint, 
+                                                  requestParams: updatedParams
+                                                });
+                                              }}
+                                              className="w-full px-2 py-1 h-6 text-xs rounded-sm border border-input bg-transparent"
+                                            />
+                                          </div>
+                                          <div className="col-span-2">
+                                            <select
+                                              value={param.type}
+                                              onChange={(e) => {
+                                                const updatedParams = [...(currentApiEndpoint.requestParams || [])];
+                                                updatedParams[index] = {...param, type: e.target.value};
+                                                
+                                                const updated = apiEndpoints.map(ep => 
+                                                  ep.id === currentApiEndpoint.id 
+                                                    ? {...ep, requestParams: updatedParams} 
+                                                    : ep
+                                                );
+                                                setApiEndpoints(updated);
+                                                setValue('apiEndpoints', updated);
+                                                setCurrentApiEndpoint({
+                                                  ...currentApiEndpoint, 
+                                                  requestParams: updatedParams
+                                                });
+                                              }}
+                                              className="w-full px-1 py-0 h-6 text-xs rounded-sm border border-input bg-transparent"
+                                            >
+                                              <option value="string">string</option>
+                                              <option value="number">number</option>
+                                              <option value="boolean">boolean</option>
+                                              <option value="object">object</option>
+                                              <option value="array">array</option>
+                                            </select>
+                                          </div>
+                                          <div className="col-span-5">
+                                            <input
+                                              type="text"
+                                              placeholder="Description"
+                                              value={param.description}
+                                              onChange={(e) => {
+                                                const updatedParams = [...(currentApiEndpoint.requestParams || [])];
+                                                updatedParams[index] = {...param, description: e.target.value};
+                                                
+                                                const updated = apiEndpoints.map(ep => 
+                                                  ep.id === currentApiEndpoint.id 
+                                                    ? {...ep, requestParams: updatedParams} 
+                                                    : ep
+                                                );
+                                                setApiEndpoints(updated);
+                                                setValue('apiEndpoints', updated);
+                                                setCurrentApiEndpoint({
+                                                  ...currentApiEndpoint, 
+                                                  requestParams: updatedParams
+                                                });
+                                              }}
+                                              className="w-full px-2 py-1 h-6 text-xs rounded-sm border border-input bg-transparent"
+                                            />
+                                          </div>
+                                          <div className="col-span-1 flex items-center">
+                                            <input
+                                              type="checkbox"
+                                              checked={param.required}
+                                              onChange={(e) => {
+                                                const updatedParams = [...(currentApiEndpoint.requestParams || [])];
+                                                updatedParams[index] = {...param, required: e.target.checked};
+                                                
+                                                const updated = apiEndpoints.map(ep => 
+                                                  ep.id === currentApiEndpoint.id 
+                                                    ? {...ep, requestParams: updatedParams} 
+                                                    : ep
+                                                );
+                                                setApiEndpoints(updated);
+                                                setValue('apiEndpoints', updated);
+                                                setCurrentApiEndpoint({
+                                                  ...currentApiEndpoint, 
+                                                  requestParams: updatedParams
+                                                });
+                                              }}
+                                              className="h-3 w-3"
+                                            />
+                                            <span className="ml-1">Req</span>
+                                          </div>
+                                          <div className="col-span-1 text-right">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const updatedParams = (currentApiEndpoint.requestParams || [])
+                                                  .filter(p => p.id !== param.id);
+                                                  
+                                                const updated = apiEndpoints.map(ep => 
+                                                  ep.id === currentApiEndpoint.id 
+                                                    ? {...ep, requestParams: updatedParams} 
+                                                    : ep
+                                                );
+                                                setApiEndpoints(updated);
+                                                setValue('apiEndpoints', updated);
+                                                setCurrentApiEndpoint({
+                                                  ...currentApiEndpoint, 
+                                                  requestParams: updatedParams
+                                                });
+                                              }}
+                                              className="text-destructive hover:text-destructive/80"
+                                            >
+                                              ×
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
                       <div>
                     <div className="flex justify-between items-center mb-1">
                         <Label htmlFor="codeSnippet">
-                          {docType === 'readme' ? 'Project Description' : 'Code Snippet'}
+                          {docType === 'readme' ? 'Project Description' : 
+                           docType === 'github' ? 'Repository Overview' :
+                           docType === 'api' ? 'Additional Notes' : 'Code Snippet'}
                         </Label>
                       <Button 
                         type="button" 
