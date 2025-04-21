@@ -1398,46 +1398,190 @@ Features:
         fileStructure: treeData.tree.map((item: any) => item.path),
         analyzedFiles: validFileContents.map(file => ({
           path: file.path,
-          preview: file.content.slice(0, 500) // First 500 chars for context
+          content: file.content
         }))
       };
 
-      // Update form with comprehensive analysis
+      // Analyze dependencies and tech stack
+      const packageFiles = validFileContents.find(f => f.path.endsWith('package.json'));
+      const requirements = validFileContents.find(f => f.path.endsWith('requirements.txt'));
+      const gradleFile = validFileContents.find(f => f.path.endsWith('build.gradle'));
+      const pomFile = validFileContents.find(f => f.path.endsWith('pom.xml'));
+
+      let dependencies = {};
+      let techStack = [];
+
+      if (packageFiles) {
+        try {
+          const packageJson = JSON.parse(packageFiles.content);
+          dependencies = {
+            ...packageJson.dependencies,
+            ...packageJson.devDependencies
+          };
+          techStack.push('Node.js');
+          if (dependencies['react']) techStack.push('React');
+          if (dependencies['@angular/core']) techStack.push('Angular');
+          if (dependencies['vue']) techStack.push('Vue.js');
+        } catch (e) {
+          console.error('Error parsing package.json:', e);
+        }
+      }
+
+      if (requirements) {
+        techStack.push('Python');
+        const pythonDeps = requirements.content.split('\n')
+          .filter(line => line.trim() && !line.startsWith('#'))
+          .map(line => line.split('==')[0].split('>=')[0].trim());
+        dependencies = { ...dependencies, ...Object.fromEntries(pythonDeps.map(dep => [dep, '*'])) };
+      }
+
+      if (gradleFile) techStack.push('Java/Kotlin');
+      if (pomFile) techStack.push('Java');
+
+      // Analyze project structure and architecture
+      const srcFiles = validFileContents.filter(f => f.path.startsWith('src/') || f.path.startsWith('lib/'));
+      const testFiles = validFileContents.filter(f => f.path.includes('test/') || f.path.includes('spec/'));
+      const configFiles = validFileContents.filter(f => 
+        f.path.match(/\.(json|yaml|yml|xml|config|conf|ini)$/i) &&
+        !f.path.includes('package.json')
+      );
+
+      // Identify main components and features
+      const components = srcFiles.map(file => {
+        const isComponent = file.content.includes('class') || file.content.includes('function') || file.content.includes('interface');
+        if (!isComponent) return null;
+
+        const componentName = file.path.split('/').pop()?.split('.')[0];
+        const componentType = file.content.includes('class') ? 'Class' :
+                            file.content.includes('interface') ? 'Interface' : 'Function';
+        
+        // Extract exports and imports
+        const exports = file.content.match(/export\s+(default\s+)?(class|function|const|interface)\s+(\w+)/g) || [];
+        const imports = file.content.match(/import\s+.*?from\s+['"].*?['"];?/g) || [];
+
+        return {
+          name: componentName,
+          type: componentType,
+          path: file.path,
+          exports: exports.map(exp => exp.split(' ').pop()),
+          imports: imports.length,
+          loc: file.content.split('\n').length
+        };
+      }).filter(Boolean);
+
+      // Generate detailed documentation structure
       const analysisDescription = `
 # ${repoAnalysis.name} Repository Analysis
 
-## Overview
+## Project Overview
 ${repoAnalysis.description || 'No description provided'}
 
-## Repository Statistics
+## Technical Specifications
 - Primary Language: ${repoAnalysis.language}
-- Stars: ${repoAnalysis.stars}
-- Forks: ${repoAnalysis.forks}
-- Last Updated: ${new Date(repoAnalysis.lastUpdated).toLocaleDateString()}
-${repoAnalysis.license ? `- License: ${repoAnalysis.license}` : ''}
+- Technology Stack: ${techStack.join(', ')}
+- Repository Statistics:
+  - Stars: ${repoAnalysis.stars}
+  - Forks: ${repoAnalysis.forks}
+  - Last Updated: ${new Date(repoAnalysis.lastUpdated).toLocaleDateString()}
+  - License: ${repoAnalysis.license || 'Not specified'}
 
-## Project Structure
+## Project Architecture
+### Directory Structure
+\`\`\`
 ${repoAnalysis.fileStructure
   .filter((path: string) => !path.includes('node_modules/'))
-  .slice(0, 20)
-  .map((path: string) => `- ${path}`)
+  .filter((path: string) => !path.includes('dist/'))
+  .filter((path: string) => !path.includes('.git/'))
+  .slice(0, 30)
+  .map((path: string) => path)
   .join('\n')}
+\`\`\`
 
-## Key Files Analyzed
-${repoAnalysis.analyzedFiles
-  .map(file => `### ${file.path}\n\`\`\`\n${file.preview}...\n\`\`\`\n`)
+### Key Components
+${components.map(comp => `
+- ${comp?.name} (${comp?.type})
+  - Location: ${comp?.path}
+  - Exports: ${comp?.exports.join(', ')}
+  - Dependencies: ${comp?.imports} imports
+  - Size: ${comp?.loc} lines of code
+`).join('')}
+
+## Dependencies and Technical Requirements
+${Object.keys(dependencies).length > 0 ? `
+### Main Dependencies
+${Object.entries(dependencies)
+  .slice(0, 15)
+  .map(([dep, version]) => `- ${dep}: ${version}`)
   .join('\n')}
+` : 'No dependency information available.'}
 
-## Topics
-${repoAnalysis.topics.length > 0 ? repoAnalysis.topics.join(', ') : 'No topics specified'}
+## Configuration
+${configFiles.map(file => `
+### ${file.path}
+\`\`\`
+${file.content.slice(0, 300)}...
+\`\`\`
+`).join('\n')}
 
-Please generate comprehensive documentation based on this repository analysis, focusing on:
-1. Project architecture and structure
-2. Main components and their interactions
-3. Setup and installation instructions
-4. Key features and functionality
-5. API documentation (if applicable)
-6. Dependencies and requirements
+## Testing and Quality Assurance
+${testFiles.length > 0 ? `
+Test files found: ${testFiles.length}
+Example test files:
+${testFiles.slice(0, 3).map(file => `- ${file.path}`).join('\n')}
+` : 'No test files identified in the repository.'}
+
+## Source Code Analysis
+${srcFiles.slice(0, 5).map(file => `
+### ${file.path}
+\`\`\`
+${file.content.slice(0, 500)}...
+\`\`\`
+`).join('\n')}
+
+## Documentation Requirements
+Please generate comprehensive documentation that includes:
+
+1. Detailed Project Overview
+   - Purpose and main features
+   - Target audience and use cases
+   - System requirements
+
+2. Architecture Documentation
+   - Component relationships and interactions
+   - Data flow between components
+   - Design patterns used
+   - System boundaries and external dependencies
+
+3. Setup and Installation Guide
+   - Step-by-step installation process
+   - Environment setup requirements
+   - Configuration instructions
+   - Troubleshooting common issues
+
+4. API Documentation (if applicable)
+   - Endpoint descriptions
+   - Request/response formats
+   - Authentication methods
+   - Rate limiting and security considerations
+
+5. Development Guide
+   - Code organization and structure
+   - Coding standards and conventions
+   - Build and deployment procedures
+   - Contributing guidelines
+
+6. Testing Strategy
+   - Testing approach and frameworks
+   - Test coverage and requirements
+   - Running and writing tests
+
+7. Maintenance and Operations
+   - Monitoring and logging
+   - Backup and recovery procedures
+   - Performance optimization guidelines
+   - Security best practices
+
+Please analyze the provided code and structure to create detailed documentation covering all these aspects.
 `;
 
       setValue('codeSnippet', analysisDescription);
@@ -1852,11 +1996,11 @@ Please generate comprehensive documentation based on this repository analysis, f
                                               }}
                                               className="w-full px-1 py-0 h-6 text-xs rounded-sm border border-input bg-transparent"
                                             >
-                                              <option value="string">string</option>
-                                              <option value="number">number</option>
-                                              <option value="boolean">boolean</option>
-                                              <option value="object">object</option>
-                                              <option value="array">array</option>
+                                              <SelectItem value="string">string</SelectItem>
+                                              <SelectItem value="number">number</SelectItem>
+                                              <SelectItem value="boolean">boolean</SelectItem>
+                                              <SelectItem value="object">object</SelectItem>
+                                              <SelectItem value="array">array</SelectItem>
                                             </select>
                                           </div>
                                           <div className="col-span-5">
