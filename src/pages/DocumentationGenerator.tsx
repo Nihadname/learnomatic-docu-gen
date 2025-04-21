@@ -1976,11 +1976,11 @@ Please analyze the provided code and structure to create detailed documentation 
                                             />
                                           </div>
                                           <div className="col-span-2">
-                                            <select
+                                            <Select
                                               value={param.type}
-                                              onChange={(e) => {
+                                              onValueChange={(value) => {
                                                 const updatedParams = [...(currentApiEndpoint.requestParams || [])];
-                                                updatedParams[index] = {...param, type: e.target.value};
+                                                updatedParams[index] = {...param, type: value};
                                                 
                                                 const updated = apiEndpoints.map(ep => 
                                                   ep.id === currentApiEndpoint.id 
@@ -1994,14 +1994,18 @@ Please analyze the provided code and structure to create detailed documentation 
                                                   requestParams: updatedParams
                                                 });
                                               }}
-                                              className="w-full px-1 py-0 h-6 text-xs rounded-sm border border-input bg-transparent"
                                             >
-                                              <SelectItem value="string">string</SelectItem>
-                                              <SelectItem value="number">number</SelectItem>
-                                              <SelectItem value="boolean">boolean</SelectItem>
-                                              <SelectItem value="object">object</SelectItem>
-                                              <SelectItem value="array">array</SelectItem>
-                                            </select>
+                                              <SelectTrigger className="h-6 text-xs">
+                                                <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="string">string</SelectItem>
+                                                <SelectItem value="number">number</SelectItem>
+                                                <SelectItem value="boolean">boolean</SelectItem>
+                                                <SelectItem value="object">object</SelectItem>
+                                                <SelectItem value="array">array</SelectItem>
+                                              </SelectContent>
+                                            </Select>
                                           </div>
                                           <div className="col-span-5">
                                             <input
