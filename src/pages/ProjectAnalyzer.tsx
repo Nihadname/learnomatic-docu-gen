@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { analyzeFile } from '@/utils/codeAnalysis';
+
 
 interface AnalysisResult {
   title: string;
@@ -436,7 +436,7 @@ const ProjectAnalyzer = () => {
     }
     return result;
 }`,
-        recommendation: "Use StringBuilder for better performance: `var sb = new StringBuilder(); foreach (var item in items) { sb.Append(item).Append(", "); } return sb.ToString();`"
+        recommendation: "Use StringBuilder for better performance: \\`var sb = new StringBuilder(); foreach (var item in items) { sb.Append(item).Append(\", \"); } return sb.ToString();\\`"
       },
       {
         title: "LINQ query executed multiple times",
