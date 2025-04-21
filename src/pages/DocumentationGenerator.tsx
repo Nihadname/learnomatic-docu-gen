@@ -1330,31 +1330,122 @@ Features:
       
       toast.info(`Analyzing repository: ${owner}/${repo}...`);
       
-      // Fetch repository structure (in real implementation, you would call your backend API)
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch repository contents');
+      // First, fetch repository metadata
+      const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+      if (!repoResponse.ok) {
+        throw new Error('Failed to fetch repository information');
       }
-      
-      const data = await response.json();
-      setRepoStructure(data);
-      
-      // Extract file list - prioritize key files like README, package.json, etc.
-      const keyFiles = data
-        .filter((item: any) => !item.name.startsWith('.') && item.type === 'file')
-        .map((item: any) => item.name);
-      
-      setRepoFiles(keyFiles);
-      
-      // Update the form with the repository structure summary
-      setValue('codeSnippet', 
-        `GitHub Repository: ${owner}/${repo}\n\n` +
-        `Key files found: ${keyFiles.join(', ')}\n\n` +
-        `This repository will be analyzed for documentation generation.`
+      const repoData = await repoResponse.json();
+
+      // Fetch repository tree (all files)
+      let treeData;
+      const treeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`);
+      if (treeResponse.ok) {
+        treeData = await treeResponse.json();
+      } else {
+        // If main branch doesn't exist, try master
+        const masterTreeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`);
+        if (!masterTreeResponse.ok) {
+          throw new Error('Failed to fetch repository contents');
+        }
+        treeData = await masterTreeResponse.json();
+      }
+
+      // Filter important files for analysis
+      const importantFiles = treeData.tree.filter((item: any) => {
+        const isImportant = (
+          // Documentation files
+          item.path.toLowerCase().includes('readme') ||
+          item.path.toLowerCase().includes('docs/') ||
+          item.path.toLowerCase().includes('documentation/') ||
+          // Configuration files
+          item.path.match(/\.(json|yaml|yml|xml|toml)$/) ||
+          // Source code files in root or src directory
+          (item.path.match(/\.(js|ts|jsx|tsx|py|java|cs|go|rb)$/) && 
+           (item.path.startsWith('src/') || !item.path.includes('/'))) ||
+          // Package management files
+          item.path.match(/(package\.json|requirements\.txt|pom\.xml|build\.gradle|gemfile)$/i)
+        );
+        return item.type === 'blob' && isImportant;
+      });
+
+      // Fetch content of important files
+      const fileContents = await Promise.all(
+        importantFiles.slice(0, 10).map(async (file: any) => {
+          const contentResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`);
+          if (!contentResponse.ok) return null;
+          const contentData = await contentResponse.json();
+          return {
+            path: file.path,
+            content: atob(contentData.content)
+          };
+        })
       );
-      setEditorValue(getValues('codeSnippet'));
+
+      // Filter out failed fetches
+      const validFileContents = fileContents.filter(f => f !== null);
+
+      // Build repository analysis
+      const repoAnalysis = {
+        name: repoData.name,
+        description: repoData.description,
+        language: repoData.language,
+        topics: repoData.topics || [],
+        stars: repoData.stargazers_count,
+        forks: repoData.forks_count,
+        lastUpdated: repoData.updated_at,
+        license: repoData.license?.name,
+        fileStructure: treeData.tree.map((item: any) => item.path),
+        analyzedFiles: validFileContents.map(file => ({
+          path: file.path,
+          preview: file.content.slice(0, 500) // First 500 chars for context
+        }))
+      };
+
+      // Update form with comprehensive analysis
+      const analysisDescription = `
+# ${repoAnalysis.name} Repository Analysis
+
+## Overview
+${repoAnalysis.description || 'No description provided'}
+
+## Repository Statistics
+- Primary Language: ${repoAnalysis.language}
+- Stars: ${repoAnalysis.stars}
+- Forks: ${repoAnalysis.forks}
+- Last Updated: ${new Date(repoAnalysis.lastUpdated).toLocaleDateString()}
+${repoAnalysis.license ? `- License: ${repoAnalysis.license}` : ''}
+
+## Project Structure
+${repoAnalysis.fileStructure
+  .filter((path: string) => !path.includes('node_modules/'))
+  .slice(0, 20)
+  .map((path: string) => `- ${path}`)
+  .join('\n')}
+
+## Key Files Analyzed
+${repoAnalysis.analyzedFiles
+  .map(file => `### ${file.path}\n\`\`\`\n${file.preview}...\n\`\`\`\n`)
+  .join('\n')}
+
+## Topics
+${repoAnalysis.topics.length > 0 ? repoAnalysis.topics.join(', ') : 'No topics specified'}
+
+Please generate comprehensive documentation based on this repository analysis, focusing on:
+1. Project architecture and structure
+2. Main components and their interactions
+3. Setup and installation instructions
+4. Key features and functionality
+5. API documentation (if applicable)
+6. Dependencies and requirements
+`;
+
+      setValue('codeSnippet', analysisDescription);
+      setEditorValue(analysisDescription);
+      setRepoStructure(repoAnalysis);
+      setRepoFiles(repoAnalysis.fileStructure);
       
-      toast.success('Repository structure analyzed successfully');
+      toast.success('Repository analyzed successfully');
     } catch (error) {
       console.error('Error analyzing repository:', error);
       toast.error('Failed to analyze GitHub repository');
